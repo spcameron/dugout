@@ -1,1 +1,30 @@
 .env
+
+# ---- Go build artifacts ----
+# Binaries for programs and tests
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go coverage tool outputs
+*.cover
+*.cov
+*.prof
+*.pprof
+
+# ---- Go workspace/cache dirs ----
+# Module download cache (never commit)
+pkg/
+bin/
+*.a
+
+# Go toolchain state (never commit)
+*.swp
+*.swo
+
+# MacOS
+.DS_Store
