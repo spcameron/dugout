@@ -25,6 +25,26 @@ Dugout will eventually include:
 
 ---
 
+## Development Setup
+
+```bash
+# clone the repo
+git clone https://github.com/spcameron/dugout.git
+cd dugout
+
+# create your environment file
+cp .env.example .env
+
+# initialize the database and migrations
+make db
+make migrate
+
+# run tests
+make test
+```
+
+---
+
 ## Environment Setup
 
 Before running the application, copy the example file and update it with your local settings:
@@ -44,21 +64,6 @@ DB_URL=postgres://<user>:<password>@localhost:5432/<database>?sslmode=disable
 ```
 
 These values are used by the database container, migrations scripts, and application startup.
-
-## Development Setup
-
-```bash
-# clone the repo
-git clone https://github.com/spcameron/dugout.git
-cd dugout
-
-# initialize the database and migrations
-make db
-make migrate
-
-# run tests
-make test
-```
 
 ---
 
