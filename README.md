@@ -84,4 +84,4 @@ Please keep PRs focused and concise. Before submitting, run `make test` and ensu
 
 This project is licensed under the **MIT License.**
 
-
+![CI tests badge](https://github.com/spcameron/dugout/actions/workflows/ci.yml/badge.svg)
