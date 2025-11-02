@@ -36,10 +36,11 @@ cp .env.example .env
 Your `.env` file should include the following variables:
 
 ```dotenv
-DB_URL=postgres://<user>:<password>@localhost:5432/<database>?sslmode=disable
 POSTGRES_USER=<user>
 POSTGRES_PASSWORD=<password>
 POSTGRES_DB=<database>
+
+DB_URL=postgres://<user>:<password>@localhost:5432/<database>?sslmode=disable
 ```
 
 These values are used by the database container, migrations scripts, and application startup.
