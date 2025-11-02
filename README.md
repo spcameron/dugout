@@ -25,6 +25,25 @@ Dugout will eventually include:
 
 ---
 
+## Environment Setup
+
+Before running the application, copy the example file and update it with your local settings:
+
+```bash
+cp .env.example .env
+```
+
+Your `.env` file should include the following variables:
+
+```dotenv
+DB_URL=postgres://<user>:<password>@localhost:5432/<database>?sslmode=disable
+POSTGRES_USER=<user>
+POSTGRES_PASSWORD=<password>
+POSTGRES_DB=<database>
+```
+
+These values are used by the database container, migrations scripts, and application startup.
+
 ## Development Setup
 
 ```bash
