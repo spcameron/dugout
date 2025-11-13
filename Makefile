@@ -1,11 +1,10 @@
 # === CONFIG ===
-ENV_FILE := .ENV
-INCLUDE $(ENV_FILE)
+ENV_FILE := .env
+-include $(ENV_FILE)
 export $(shell sed 's/=.*//' $(ENV_FILE))
 
-DB_URL ?= postgres://postgres:postgres@localhost:5432/roster?sslmode=disable
 
-.PHONY: help up down gen test db/migrate db/reset
+.PHONY: help up down gen test db/migrate db/reset run
 
 help:
 	@echo "Available targets:"
@@ -13,8 +12,9 @@ help:
 	@echo "  down          Stop local Postgres container"
 	@echo "  gen           Regenerate SQLC code"
 	@echo "  db/migrate    Apply DB migrations"
-	@echo "  db/rest       Drop and re-run migrations"
+	@echo "  db/reset      Drop and re-run migrations"
 	@echo "  test          Run all Go tests"
+	@echo "  run           Launch Dugout app"
 
 up:
 	docker compose up -d db
@@ -28,9 +28,12 @@ gen:
 db/migrate:
 	goose -dir migrations postgres "$(DB_URL)" up
 
-db/rest:
+db/reset:
 	goose -dir migrations postgres "$(DB_URL)" reset
 	goose -dir migrations postgres "$(DB_URL)" up
 
 test:
-	go test ./...
+	go test ./... -race -cover
+
+run:
+	go run ./cmd/dugout/
