@@ -1,0 +1,33 @@
+# ---- Go build artifacts ----
+# Binaries for programs and tests
+*.exe
+*.exe~
+*.test
+*.out
+
+# Go coverage tool outputs
+*.cover
+*.cov
+*.prof
+*.pprof
+
+# Go / Delve debug binaries
+__debug_bin*
+
+# ---- Go workspace/cache dirs ----
+# Module download cache (never commit)
+pkg/
+bin/
+*.
+
+# Go toolchain state (never commit)
+*.swp
+*.swo
+
+# Go workspaces
+go.work
+go.work.sum
+
+# ---- IDE/editor cruft ----
+# MacOS
+.DS_Store
