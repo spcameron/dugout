@@ -22,12 +22,8 @@ ENV_LOAD := set -a; . "$(ENV_FILE)"; set +a
 
 # Optionally, provide a .env.test for manual test-driving the application
 
-# MUST UPDATE THESE PLACEHOLDERS
-main_package_path   ?= ./cmd/example
-binary_name         ?= example
-production_host_ip  ?= xxx.xxx.xx.xxx
-production_ssh_user ?= example_user
-migrations_dir      ?= ./migrations
+main_package_path   ?= ./cmd/dugout
+binary_name         ?= dugout
 
 ## env/check: fail if .env is missing
 .PHONY: env/check
@@ -292,139 +288,174 @@ pr/create: confirm audit on-feature
 pr/view: on-feature
 	@gh pr view --web
 
-## cleanup/feature: switch to main and delete the current feature branch locally
+## cleanup/feature: switch to main, update it, and delete the previous feature branch locally
 .PHONY: cleanup/feature
-cleanup/feature: confirm require-clean on-feature
+cleanup/feature: confirm require-clean
 	@branch="$$(git rev-parse --abbrev-ref HEAD)"; \
+	if [ "$$branch" = "main" ]; then \
+		echo "error: refusing to delete 'main'"; \
+		exit 1; \
+	fi; \
+	echo "Cleaning up branch '$$branch'..."; \
+	git fetch origin; \
 	git switch main; \
 	git pull --ff-only; \
-	git branch -d "$$branch"
+	git diff --quiet origin/main.."$$branch" || { \
+		echo "error: '$$branch' has changes not in origin/main"; \
+		exit 1; \
+	}; \
+	git branch -D "$$branch"
 
 # ==================================================================================== #
 # DATABASE (Postgres + goose + sqlc)
 # ==================================================================================== #
 
-## tools/check: verify required tooling is installed
-.PHONY: tools/check
-tools/check:
+bootstrap_sql  ?= ./db/bootstrap.sql
+migrations_dir ?= ./migrations
+
+# DSN templates (expanded by the shell after $(ENV_LOAD))
+dsn_admin         = host=$$DB_HOST port=$$DB_PORT dbname=postgres user=$$DB_USER_ADMIN sslmode=$$DB_SSLMODE
+dsn_app_dev       = host=$$DB_HOST port=$$DB_PORT dbname=$$DB_NAME user=$$DB_USER_APP sslmode=$$DB_SSLMODE
+dsn_migrator_dev  = host=$$DB_HOST port=$$DB_PORT dbname=$$DB_NAME user=$$DB_USER_MIGRATOR sslmode=$$DB_SSLMODE
+dsn_app_test      = host=$$DB_HOST port=$$DB_PORT dbname=$$DB_NAME_TEST user=$$DB_USER_APP sslmode=$$DB_SSLMODE
+dsn_migrator_test = host=$$DB_HOST port=$$DB_PORT dbname=$$DB_NAME_TEST user=$$DB_USER_MIGRATOR sslmode=$$DB_SSLMODE
+
+## db/tools/check: verify required tooling is installed
+.PHONY: db/tools/check
+db/tools/check:
 	@command -v sqlc >/dev/null 2>&1 || { echo "Refusing: sqlc not found. Install it and try again." >&2; exit 1; }
 	@command -v goose >/dev/null 2>&1 || { echo "Refusing: goose not found. Install it and try again." >&2; exit 1; }
+	@command -v psql >/dev/null 2>&1 || { echo "Refusing: psql not found. Install Postgres client tools and try again." >&2; exit 1; }
+
+## db/check: fail if required DB env vars are not set
+.PHONY: db/check
+db/check: env/check db/tools/check
+	@$(ENV_LOAD); \
+	test -n "$$DB_HOST" || (echo "Refusing: DB_HOST is not set." >&2; exit 1); \
+	test -n "$$DB_PORT" || (echo "Refusing: DB_PORT is not set." >&2; exit 1); \
+	test -n "$$DB_SSLMODE" || (echo "Refusing: DB_SSLMODE is not set." >&2; exit 1); \
+	test -n "$$DB_NAME" || (echo "Refusing: DB_NAME is not set." >&2; exit 1); \
+	test -n "$$DB_NAME_TEST" || (echo "Refusing: DB_NAME_TEST is not set." >&2; exit 1); \
+	test -n "$$DB_USER_ADMIN" || (echo "Refusing: DB_USER_ADMIN is not set." >&2; exit 1); \
+	test -n "$$DB_USER_MIGRATOR" || (echo "Refusing: DB_USER_MIGRATOR is not set." >&2; exit 1); \
+	test -n "$$DB_USER_APP" || (echo "Refusing: DB_USER_APP is not set." >&2; exit 1)
+
+## db/bootstrap: create roles and databases (idempotent-ish)
+.PHONY: db/bootstrap
+db/bootstrap: db/check
+	@test -f "$(bootstrap_sql)" || (echo "Refusing: $(bootstrap_sql) not found." >&2; exit 1)
+	@$(ENV_LOAD); \
+	psql "$(dsn_admin)" -v ON_ERROR_STOP=1 -f "$(bootstrap_sql)"
 
 ## sqlc: generate Go code from SQL queries
 .PHONY: sqlc
-sqlc: tools/check
+sqlc: db/tools/check
 	@sqlc generate
 	
 ## db/gen: run migrations then regenerate sqlc (common dev workflow)
 .PHONY: db/gen
 db/gen: db/migrate/up sqlc
 
-## db/check: fail if DB_DSN is not set
-.PHONY: db/check
-db/check: env/check
-	@$(ENV_LOAD); \
-	test -n "$(DB_DSN)" || (echo "Refusing: DB_DSN is not set." >&2; exit 1)
-
 ## db/connect: connect to the dev database with psql
 .PHONY: db/connect
 db/connect: db/check
 	@$(ENV_LOAD); \
-	psql "$(DB_DSN)"
+	psql "$(dsn_app_dev)"
 
 ## db/ping: verify database connectivity
 .PHONY: db/ping
 db/ping: db/check
 	@$(ENV_LOAD); \
-	psql "$(DB_DSN)" -c 'select 1' >/dev/null
+	psql "$(dsn_app_dev)" -c 'select 1' >/dev/null
 
 ## db/migrate/new name=...: create a new migration file
 .PHONY: db/migrate/new
-db/migrate/new: tools/check
+db/migrate/new: db/tools/check
 	@test -n "$(name)" || (echo "Usage: make db/migrate/new name=<migration_name>" >&2; exit 1)
 	@goose -dir "$(migrations_dir)" create "$(name)" sql
 
 ## db/migrate/status: show migration status
 .PHONY: db/migrate/status
-db/migrate/status: tools/check db/check
+db/migrate/status: db/check
 	@$(ENV_LOAD); \
-	goose -dir "$(migrations_dir)" postgres "$(DB_DSN)" status
+	goose -dir "$(migrations_dir)" postgres "$(dsn_migrator_dev)" status
 
 ## db/migrate/up: apply all up migrations
 .PHONY: db/migrate/up
-db/migrate/up: tools/check db/check
+db/migrate/up: db/check
 	@$(ENV_LOAD); \
-	goose -dir "$(migrations_dir)" postgres "$(DB_DSN)" up
+	goose -dir "$(migrations_dir)" postgres "$(dsn_migrator_dev)" up
 
 ## db/migrate/down: roll back the most recent migration
 .PHONY: db/migrate/down
-db/migrate/down: confirm tools/check db/check
+db/migrate/down: confirm db/check
 	@$(ENV_LOAD); \
-	goose -dir "$(migrations_dir)" postgres "$(DB_DSN)" down
+	goose -dir "$(migrations_dir)" postgres "$(dsn_migrator_dev)" down
 
 ## db/migrate/reset: rollback all migrations, then migrate up (DESTRUCTIVE)
 .PHONY: db/migrate/reset
-db/migrate/reset: confirm tools/check db/check
+db/migrate/reset: confirm db/check
 	@$(ENV_LOAD); \
-	goose -dir "$(migrations_dir)" postgres "$(DB_DSN)" reset
+	goose -dir "$(migrations_dir)" postgres "$(dsn_migrator_dev)" reset
 
 ## db/migrate/version: print current migration version
 .PHONY: db/migrate/version
-db/migrate/version: tools/check db/check
+db/migrate/version: db/check
 	@$(ENV_LOAD); \
-	goose -dir "$(migrations_dir)" postgres "$(DB_DSN)" version
+	goose -dir "$(migrations_dir)" postgres "$(dsn_migrator_dev)" version
 
 # ==================================================================================== #
 # TEST DATABASE (Postgres + goose + sqlc)
 # ==================================================================================== #
 
-## db/test/check: fail if TEST_DB_DSN is not set (and guard against pointing at dev DSN)
+## db/test/check: fail if test DB is not set (and guard against pointing at dev DB)
 .PHONY: db/test/check
-db/test/check: env/check
+db/test/check: db/check
 	@$(ENV_LOAD); \
-	test -n "$(TEST_DB_DSN)" || (echo "Refusing: TEST_DB_DSN is not set." >&2; exit 1); \
-	test "$(TEST_DB_DSN)" != "$(DB_DSN)" || (echo "Refusing: TEST_DB_DSN must not equal DB_DSN." >&2; exit 1)
+	test -n "$$DB_NAME_TEST" || (echo "Refusing: DB_NAME_TEST is not set." >&2; exit 1); \
+	test "$$DB_NAME_TEST" != "$$DB_NAME" || (echo "Refusing: DB_NAME_TEST must not equal DB_NAME." >&2; exit 1)
 
 ## db/test/connect: connect to the test database with psql
 .PHONY: db/test/connect
 db/test/connect: db/test/check
 	@$(ENV_LOAD); \
-	psql "$(TEST_DB_DSN)"
+	psql "$(dsn_app_test)"
 
 ## db/test/ping: verify test database connectivity
 .PHONY: db/test/ping
 db/test/ping: db/test/check
 	@$(ENV_LOAD); \
-	psql "$(TEST_DB_DSN)" -c 'select 1' >/dev/null
+	psql "$(dsn_app_test)" -c 'select 1' >/dev/null
 
 ## db/test/migrate/status: show migration status (test DB)
 .PHONY: db/test/migrate/status
-db/test/migrate/status: tools/check db/test/check
+db/test/migrate/status: db/test/check
 	@$(ENV_LOAD); \
-	goose -dir "$(migrations_dir)" postgres "$(TEST_DB_DSN)" status
+	goose -dir "$(migrations_dir)" postgres "$(dsn_migrator_test)" status
 
 ## db/test/migrate/up: apply all up migrations (test DB)
 .PHONY: db/test/migrate/up
-db/test/migrate/up: tools/check db/test/check
+db/test/migrate/up: db/test/check
 	@$(ENV_LOAD); \
-	goose -dir "$(migrations_dir)" postgres "$(TEST_DB_DSN)" up
+	goose -dir "$(migrations_dir)" postgres "$(dsn_migrator_test)" up
 
 ## db/test/migrate/down: roll back the most recent migration (test DB)
 .PHONY: db/test/migrate/down
-db/test/migrate/down: confirm tools/check db/test/check
+db/test/migrate/down: confirm db/test/check
 	@$(ENV_LOAD); \
-	goose -dir "$(migrations_dir)" postgres "$(TEST_DB_DSN)" down
+	goose -dir "$(migrations_dir)" postgres "$(dsn_migrator_test)" down
 
 ## db/test/migrate/reset: rollback all migrations, then migrate up (DESTRUCTIVE, test DB)
 .PHONY: db/test/migrate/reset
-db/test/migrate/reset: confirm tools/check db/test/check
+db/test/migrate/reset: confirm db/test/check
 	@$(ENV_LOAD); \
-	goose -dir "$(migrations_dir)" postgres "$(TEST_DB_DSN)" reset
+	goose -dir "$(migrations_dir)" postgres "$(dsn_migrator_test)" reset
 
 ## db/test/migrate/version: print current migration version (test DB)
 .PHONY: db/test/migrate/version
-db/test/migrate/version: tools/check db/test/check
+db/test/migrate/version: db/test/check
 	@$(ENV_LOAD); \
-	goose -dir "$(migrations_dir)" postgres "$(TEST_DB_DSN)" version
+	goose -dir "$(migrations_dir)" postgres "$(dsn_migrator_test)" version
 
 # ==================================================================================== #
 # DEPLOYMENT
@@ -442,8 +473,11 @@ predeploy: audit require-clean on-main up-to-date confirm
 
 ## production/connect: connect to the production server
 .PHONY: production/connect
-production/connect:
-	@ssh $(production_ssh_user)@"$(production_host_ip)"
+production/connect: env/check
+	@$(ENV_LOAD); \
+	test -n "$$PRODUCTION_HOST_IP" || (echo "Refusing: PRODUCTION_HOST_IP is not set." >&2; exit 1); \
+	test -n "$$PRODUCTION_SSH_USER" || (echo "Refusing: PRODUCTION_SSH_USER is not set." >&2; exit 1); \
+	ssh "$$PRODUCTION_SSH_USER@$$PRODUCTION_HOST_IP"
 
 ## production/deploy: deploy the application to production
 .PHONY: production/deploy
