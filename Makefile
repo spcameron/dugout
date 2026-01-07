@@ -321,7 +321,7 @@ cleanup/feature: confirm require-clean
 # ==================================================================================== #
 
 bootstrap_sql  ?= ./db/bootstrap.sql
-migrations_dir ?= ./migrations
+migrations_dir ?= ./db/migrations
 
 # DSN templates (expanded by the shell after $(ENV_LOAD))
 dsn_admin         = host=$$DB_HOST port=$$DB_PORT dbname=postgres user=$$DB_USER_ADMIN sslmode=$$DB_SSLMODE
@@ -350,12 +350,21 @@ db/check: env/check db/tools/check
 	test -n "$$DB_USER_MIGRATOR" || (echo "Refusing: DB_USER_MIGRATOR is not set." >&2; exit 1); \
 	test -n "$$DB_USER_APP" || (echo "Refusing: DB_USER_APP is not set." >&2; exit 1)
 
-## db/bootstrap: create roles and databases (idempotent-ish)
+## db/bootstrap: create roles and databases (safe-ish to re-run)
 .PHONY: db/bootstrap
 db/bootstrap: db/check
 	@test -f "$(bootstrap_sql)" || (echo "Refusing: $(bootstrap_sql) not found." >&2; exit 1)
 	@$(ENV_LOAD); \
-	psql "$(dsn_admin)" -v ON_ERROR_STOP=1 -f "$(bootstrap_sql)"
+	out="$$(mktemp)"; \
+	if psql "$(dsn_admin)" -v ON_ERROR_STOP=1 -f "$(bootstrap_sql)" >"$$out" 2>&1; then \
+		cat "$$out"; rm -f "$$out"; exit 0; \
+	fi; \
+	allowed_re="database \"($$DB_NAME|$$DB_NAME_TEST)\" already exists"; \
+	other_err="$$(grep -E '^psql:.*ERROR:' "$$out" | grep -Ev "$$allowed_re" || true)"; \
+	if grep -Eq 'ERROR:.*database ".*" already exists' "$$out" && [ -z "$$other_err" ]; then \
+		cat "$$out"; rm -f "$$out"; exit 0; \
+	fi; \
+	cat "$$out" >&2; rm -f "$$out"; exit 1
 
 ## db/sqlc: generate Go code from SQL queries
 .PHONY: db/sqlc
@@ -378,11 +387,12 @@ db/ping: db/check
 	@$(ENV_LOAD); \
 	psql "$(dsn_app_dev)" -c 'select 1' >/dev/null
 
-## db/migrate/new name=...: create a new migration file
+## db/migrate/new name=...: create a new migration file (sequential numbering)
 .PHONY: db/migrate/new
 db/migrate/new: db/tools/check
 	@test -n "$(name)" || (echo "Usage: make db/migrate/new name=<migration_name>" >&2; exit 1)
-	@goose -dir "$(migrations_dir)" create "$(name)" sql
+	@test -d "$(migrations_dir)" || (echo "Refusing: migrations_dir not found: $(migrations_dir)" >&2; exit 1)
+	@goose -s -dir "$(migrations_dir)" create "$(name)" sql
 
 ## db/migrate/status: show migration status
 .PHONY: db/migrate/status
