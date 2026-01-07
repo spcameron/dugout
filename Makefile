@@ -203,16 +203,6 @@ require-upstream:
 		echo "Refusing: no upstream set for this branch. Run 'make push/u' first." >&2; \
 		exit 1; \
 	fi
-
-## up-to-date: fail unless local HEAD matches origin/main
-.PHONY: up-to-date
-up-to-date: on-main
-	@git fetch origin; \
-	if [ "$$(git rev-parse HEAD)" != "$$(git rev-parse origin/main)" ]; then \
-		echo "Refusing: local HEAD does not match origin/main." >&2; \
-		echo "Hint: run 'git pull --ff-only' on main." >&2; \
-		exit 1; \
-	fi
 	
 ## on-main: fail unless currently on main
 .PHONY: on-main
@@ -237,12 +227,28 @@ on-feature:
 		*) echo "Refusing: branch '$$branch' not in allowed prefixes (feature/, fix/, refactor/, chore/, docs/)." >&2; exit 1 ;; \
 	esac
 
+## up-to-date: fail unless local HEAD matches origin/main
+.PHONY: up-to-date
+up-to-date: on-main
+	@git fetch origin; \
+	if [ "$$(git rev-parse HEAD)" != "$$(git rev-parse origin/main)" ]; then \
+		echo "Refusing: local HEAD does not match origin/main." >&2; \
+		echo "Hint: run 'git pull --ff-only' on main." >&2; \
+		exit 1; \
+	fi
+
 ## sync/main: fast-forward main from origin/main
 .PHONY: sync/main
 sync/main: confirm require-clean
 	@git switch main
 	@git pull --ff-only
 	
+## rebase/main: rebase current branch onto origin/main
+.PHONY: rebase/main
+rebase/main: confirm require-clean on-feature
+	@git fetch origin
+	@git rebase origin/main
+
 ## branch/new: create and switch to a new work branch
 .PHONY: branch/new
 branch/new: confirm require-clean on-main
@@ -261,12 +267,24 @@ branch/new: confirm require-clean on-main
 	git pull --ff-only ; \
 	git switch -c "$$branch"
 	
-## rebase/main: rebase current branch onto origin/main
-.PHONY: rebase/main
-rebase/main: confirm require-clean on-feature
-	@git fetch origin
-	@git rebase origin/main
-	
+## branch/cleanup: switch to main, update it, and delete the previous feature branch locally
+.PHONY: branch/cleanup
+branch/cleanup: confirm require-clean
+	@branch="$$(git rev-parse --abbrev-ref HEAD)"; \
+	if [ "$$branch" = "main" ]; then \
+		echo "error: refusing to delete 'main'"; \
+		exit 1; \
+	fi; \
+	echo "Cleaning up branch '$$branch'..."; \
+	git fetch origin; \
+	git switch main; \
+	git pull --ff-only; \
+	git diff --quiet origin/main.."$$branch" || { \
+		echo "error: '$$branch' has changes not in origin/main"; \
+		exit 1; \
+	}; \
+	git branch -D "$$branch"
+
 ## push: push changes to the remote Git repository
 .PHONY: push
 push: on-feature require-upstream
@@ -295,24 +313,6 @@ pr/create: confirm audit on-feature
 .PHONY: pr/view
 pr/view: on-feature
 	@gh pr view --web
-
-## cleanup/feature: switch to main, update it, and delete the previous feature branch locally
-.PHONY: cleanup/feature
-cleanup/feature: confirm require-clean
-	@branch="$$(git rev-parse --abbrev-ref HEAD)"; \
-	if [ "$$branch" = "main" ]; then \
-		echo "error: refusing to delete 'main'"; \
-		exit 1; \
-	fi; \
-	echo "Cleaning up branch '$$branch'..."; \
-	git fetch origin; \
-	git switch main; \
-	git pull --ff-only; \
-	git diff --quiet origin/main.."$$branch" || { \
-		echo "error: '$$branch' has changes not in origin/main"; \
-		exit 1; \
-	}; \
-	git branch -D "$$branch"
 
 # ==================================================================================== #
 ## --------
@@ -514,5 +514,4 @@ production/deploy: predeploy production/tools/check build/linux_amd64
 # - production/log: view production logs
 # - production/db: connect to production database
 # - production/upgrade: update and upgrade software on production server
-
 
