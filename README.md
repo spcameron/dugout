@@ -147,12 +147,6 @@ Then restrict permissions:
 chmod 600 ~/.pgpass
 ```
 
-Alternatives:
-
-Advanced users may prefer peer authentication or environment variables such as PGPASSWORD.
-
-The Makefile supports these, but .pgpass provides the smoothest local experience.
-
 ### 4. Run migrations
 
 Apply schema migrations to both databases:
