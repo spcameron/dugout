@@ -84,10 +84,10 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_SSLMODE=disable
 
-DB_NAME=dugout
+DB_NAME=dugout_dev
 DB_NAME_TEST=dugout_test
 
-DB_USER_ADMIN=postgres
+DB_USER_ADMIN=your_local_pg_admin_role
 DB_USER_MIGRATOR=dugout_migrator
 DB_USER_APP=dugout_app
 ```
@@ -96,40 +96,62 @@ These values define **connection facts**, not credentials.
 
 `.env` intentionally does **not** contain passwords.
 
-### 2. Configure database authentication (recommended)
+### 2. Bootstrap the database
 
-This project relies on PostgreSQL role separation (admin, migrator, app) and expects authentication to configured locally, outside the repository.
-
-The recommended approach is to use PostgreSQL's machine-local password file, `~/.pgpass`.
-
-Create or edit the file at `~/.pgpass`.
-
-Add entries for your local development and test databases:
-```bash
-localhost:5432:dugout:dugout_app:<app_password>
-localhost:5432:dugout:dugout_migrator:<migrator_password>
-localhost:5432:dugout_test:dugout_app:<app_password>
-localhost:5432:dugout_test:dugout_migrator:<migrator_password>
-```
-
-Then restrict permissions:
-```bash
-chmod 600 ~/.pgpass
-```
-
-Alternatives:
-- Advanced users may prefer peer authentication or environment variables such as `PGPASSWORD`.
-- The Makefile supports these, but `.pgpass` provides the smoothest local experience.
-
-### 3. Bootstrap the database
-
-Once authentication is configured, initialize roles and databases:
+Initialize the required PostreSQL roles and databases:
 
 ```bash
 make db/bootstrap
 ```
 
-This step creates the required Postgres roles, creates development and test databases, and assigns ownership and base permissions. It is safe to re-run.
+This step creates the application and migrator roles, creates development and test databases, and assigns ownership and base permissions. It is safe to re-run.
+
+**Note:** On many macOS/Homebrew installations, the default Postgres superuser role is your OS username, not `postgres`. You can list local roles with `psql -d postgres -c '\du'`. Set `DB_USER_ADMIN` in `.env` accordingly.
+
+### 3. Configure database authentication (recommended)
+
+This project relies on PostgreSQL role separation (admin, migrator, app) and expects authentication to be configured locally, outside the repository.
+
+After bootstrapping has created the roles, set local passwords for the non-admin roles:
+
+```bash
+app_pw="$(openssl rand -base64 24)"
+migrator_pw="$(openssl rand -base64 24)"
+
+psql -d postgres -c "ALTER ROLE dugout_app WITH PASSWORD '$app_pw';"
+psql -d postgres -c "ALTER ROLE dugout_migrator WITH PASSWORD '$migrator_pw';"
+```
+
+Choose any secure local method you prefer for generating passwords. These values are never committed to the repository.
+
+To avoid password prompts during development, use PostgreSQL’s machine-local password file, `~/.pgpass`.
+
+Create or edit the file at:
+
+```bash
+~/.pgpass
+```
+
+Add entries for your local development and test databases:
+
+```bash
+localhost:5432:dugout_dev:dugout_app:<app_password>
+localhost:5432:dugout_dev:dugout_migrator:<migrator_password>
+localhost:5432:dugout_test:dugout_app:<app_password>
+localhost:5432:dugout_test:dugout_migrator:<migrator_password>
+```
+
+Then restrict permissions:
+
+```bash
+chmod 600 ~/.pgpass
+```
+
+Alternatives:
+
+Advanced users may prefer peer authentication or environment variables such as PGPASSWORD.
+
+The Makefile supports these, but .pgpass provides the smoothest local experience.
 
 ### 4. Run migrations
 
@@ -164,10 +186,12 @@ This uses `air` to rebuild and restart the application automatically when files 
 
 ### Common Issues
 
-- If the application fails to start due to missing configuration, confirm that `.env` is present and matches `.env.example`.
-- If you see databse authentication errors, verify your local Postgres authentication method (recommended: `~/.pgpass`) and that you have run:
-    - `make db/bootstrap`
-    - `make db/migrate/up`
+- If the application fails to start due to missing configuration, confirm that .env exists and matches .env.example.
+- If you see database authentication errors, verify:
+    - `make db/bootstrap` has been run
+    - role passwords are set locally
+    - `~/.pgpass` exists and has correct permissions
+    - `make db/migrate/up` completes successfully
 
 ---
 
@@ -176,10 +200,7 @@ This uses `air` to rebuild and restart the application automatically when files 
 We welcome your contributions! To get started:
 - Fork the repository on Github
 - Follow the development and environment setup instructions above
-- Create a feature branch:
-```bash
-make branch/new
-```
+- Create a feature branch by running `make branch/new`
 - Commit your changes with clear messages
 - Push your branch and open a pull request
 
