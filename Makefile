@@ -1,5 +1,7 @@
 # ==================================================================================== #
-# HELPERS
+## -------
+## HELPERS
+## -------
 # ==================================================================================== #
 
 ## help: print this help message
@@ -14,7 +16,9 @@ confirm:
 	@printf 'Are you sure? [y/N] ' && read ans && [ "$${ans:-N}" = y ]
 
 # ==================================================================================== #
-# ENVIRONMENT VARIABLES
+## ---------------------
+## ENVIRONMENT VARIABLES
+## ---------------------
 # ==================================================================================== #
 
 ENV_FILE := .env
@@ -34,7 +38,9 @@ env/check:
 	)
 
 # ==================================================================================== #
-# QUALITY CONTROL
+## ---------------
+## QUALITY CONTROL
+## ---------------
 # ==================================================================================== #
 
 ## audit: run quality control checks
@@ -104,7 +110,9 @@ upgradeable:
 	@go run github.com/oligot/go-mod-upgrade@latest
 
 # ==================================================================================== #
-# CI
+## ----------------------
+## CONTINUOUS INTEGRATION
+## ----------------------
 # ==================================================================================== #
 
 # Pinned tool versions for CI reproducibility (Make vars => lowercase).
@@ -126,7 +134,9 @@ ci/vulncheck:
 	@go run golang.org/x/vuln/cmd/govulncheck@$(govulncheck_version) ./...
 
 # ==================================================================================== #
-# DEVELOPMENT
+## -----------
+## DEVELOPMENT
+## -----------
 # ==================================================================================== #
 
 ## tidy: tidy modfiles and format .go files
@@ -170,7 +180,9 @@ run/live: env/check
 # - run/test: create .env.test with substitute variables
 
 # ==================================================================================== #
-# GIT AND GITHUB
+## --------------
+## GIT AND GITHUB
+## --------------
 # ==================================================================================== #
 
 ## require-clean: fail if the Git working tree has uncommitted changes
@@ -182,10 +194,6 @@ require-clean:
 		echo "$$status" >&2; \
 		exit 1; \
 	fi
-
-## no-dirty: alias for require-clean (deprecated)
-.PHONY: no-dirty
-no-dirty: require-clean
 
 ## require-upstream: fail unless current branch has an upstream tracking branch
 .PHONY: require-upstream
@@ -307,7 +315,9 @@ cleanup/feature: confirm require-clean
 	git branch -D "$$branch"
 
 # ==================================================================================== #
-# DATABASE (Postgres + goose + sqlc)
+## --------
+## DATABASE
+## --------
 # ==================================================================================== #
 
 bootstrap_sql  ?= ./db/bootstrap.sql
@@ -347,14 +357,14 @@ db/bootstrap: db/check
 	@$(ENV_LOAD); \
 	psql "$(dsn_admin)" -v ON_ERROR_STOP=1 -f "$(bootstrap_sql)"
 
-## sqlc: generate Go code from SQL queries
-.PHONY: sqlc
-sqlc: db/tools/check
+## db/sqlc: generate Go code from SQL queries
+.PHONY: db/sqlc
+db/sqlc: db/tools/check
 	@sqlc generate
 	
 ## db/gen: run migrations then regenerate sqlc (common dev workflow)
 .PHONY: db/gen
-db/gen: db/migrate/up sqlc
+db/gen: db/migrate/up db/sqlc
 
 ## db/connect: connect to the dev database with psql
 .PHONY: db/connect
@@ -405,7 +415,9 @@ db/migrate/version: db/check
 	goose -dir "$(migrations_dir)" postgres "$(dsn_migrator_dev)" version
 
 # ==================================================================================== #
-# TEST DATABASE (Postgres + goose + sqlc)
+## -------------
+## TEST DATABASE
+## -------------
 # ==================================================================================== #
 
 ## db/test/check: fail if test DB is not set (and guard against pointing at dev DB)
@@ -458,7 +470,9 @@ db/test/migrate/version: db/test/check
 	goose -dir "$(migrations_dir)" postgres "$(dsn_migrator_test)" version
 
 # ==================================================================================== #
-# DEPLOYMENT
+## ----------
+## DEPLOYMENT
+## ----------
 # ==================================================================================== #
 
 ## tools/check: verify required tooling is installed
