@@ -170,6 +170,7 @@ make run
 This builds the application binary to `/tmp/bin/dugout`, loads environment variables from `.env`, and then runs the binary.
 
 **Passing runtime arguments**
+
 The `run` target supports an optional argument passthrough via the `ARGS` variable, which is forwarded directly to the application binary:
 
 ```bash
@@ -180,6 +181,7 @@ make run ARGS="-port=4000 -env=development"
 This allows flags to be supplied without modifying the Makefile or environment configuration.
 
 **Live reloading during development**
+
 You may also wish to run the application with live reloading enabled:
 
 ```bash
