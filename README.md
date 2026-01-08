@@ -92,9 +92,7 @@ DB_USER_MIGRATOR=dugout_migrator
 DB_USER_APP=dugout_app
 ```
 
-These values define **connection facts**, not credentials.
-
-`.env` intentionally does **not** contain passwords.
+These values define **connection facts**, not credentials. `.env` intentionally does **not** contain passwords.
 
 ### 2. Bootstrap the database
 
@@ -155,32 +153,47 @@ Apply schema migrations to both databases:
 make db/migrate/up
 make db/test/migrate/up
 ```
+
 Migrations are executed using the **migrator role**, not the application role.
 
 ### 5. Running the application
 
-After bootstrapping and migrating the databases, you can build and run the application locally using the Makefile.
+The Makefile provides the canonical way to build and run the application locally. It encapsulates binary compilation, environment loading, and common execution patterns.
+
+After bootstrapping and migrating the databases, you can build and run the application locally with:
 
 ```bash
 make build
+make run
 ```
 
-This target build the application binary to `/tmp/bin/dugout`, loads environment variables from `.env`, and then runs the binary with optional argument passthrough via `ARGS`. For example:
+This builds the application binary to `/tmp/bin/dugout`, loads environment variables from `.env`, and then runs the binary.
+
+**Passing runtime arguments**
+The `run` target supports an optional argument passthrough via the `ARGS` variable, which is forwarded directly to the application binary:
 
 ```bash
 make run ARGS="--help"
+make run ARGS="-port=4000 -env=development"
 ```
 
-You may also wish to run the application with live reload
+This allows flags to be supplied without modifying the Makefile or environment configuration.
+
+**Live reloading during development**
+You may also wish to run the application with live reloading enabled:
+
 ```bash
 make run/live
+make run/live ARGS="-port=4000 -env=development"
 ```
 
-This uses `air` to rebuild and restart the application automatically when files change (Go, templates, SQL, and common web assets). Note: `run/live` installs and runs `air` via `go run ...@latest`. If you prefer a pinned version, install `air` separately and update the Makefile accordingly.
+This uses `air` to rebuild and restart the application automatically when files change (Go source, templates, SQL, and common web assets). 
+
+**Note:** `run/live` installs and runs `air` via `go run ...@latest`. If you prefer a pinned version, install `air` separately and update the Makefile accordingly.
 
 ### Common Issues
 
-- If the application fails to start due to missing configuration, confirm that .env exists and matches .env.example.
+- If the application fails to start due to missing configuration, confirm that `.env` exists and matches `.env.example`.
 - If you see database authentication errors, verify:
     - `make db/bootstrap` has been run
     - role passwords are set locally
