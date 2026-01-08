@@ -164,17 +164,20 @@ run: env/check build
 	@$(ENV_LOAD); \
 	/tmp/bin/$(binary_name) $(ARGS)
 	
-## run/live: run the application with reloading on file changes
+## run/live: run the application with reloading on file changes (optional ARGS passthrough)
 .PHONY: run/live
-run/live: env/check 
+run/live: env/check
 	@echo "Running $(binary_name) with automatic refresh on file changes..."
 	@$(ENV_LOAD); \
 	go run github.com/cosmtrek/air@latest \
-		--build.cmd "$(MAKE) build" --build.bin "/tmp/bin/$(binary_name)" --build.delay "100" \
+		--build.cmd "$(MAKE) build" \
+		--build.bin "/tmp/bin/$(binary_name)" \
+		--build.args_bin "$(ARGS)" \
+		--build.delay "100" \
 		--build.exclude_dir "" \
 		--build.include_ext "go, tpl, tmpl, html, css, scss, js, ts, sql, jpeg, jpg, gif, png, bmp, svg, webp, ico" \
 		--misc.clean_on_exit "true"
-		
+
 # Suggested additional targets:
 # - run/debug: run with debug-oriented flags (override via ARGS)
 # - run/test: create .env.test with substitute variables
