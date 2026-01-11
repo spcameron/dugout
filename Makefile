@@ -323,8 +323,8 @@ pr/view: on-feature
 ## --------
 # ==================================================================================== #
 
-bootstrap_sql  ?= ./db/bootstrap.sql
-migrations_dir ?= ./db/migrations
+bootstrap_sql  ?= ./database/bootstrap.sql
+migrations_dir ?= ./database/migrations
 
 # DSN templates (expanded by the shell after $(ENV_LOAD))
 dsn_admin         = host=$$DB_HOST port=$$DB_PORT dbname=postgres user=$$DB_USER_ADMIN sslmode=$$DB_SSLMODE

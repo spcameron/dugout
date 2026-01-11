@@ -3,7 +3,7 @@
 //   sqlc v1.30.0
 // source: ping.sql
 
-package db
+package database
 
 import (
 	"context"
