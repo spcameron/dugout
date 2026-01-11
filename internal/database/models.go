@@ -2,7 +2,7 @@
 // versions:
 //   sqlc v1.30.0
 
-package db
+package database
 
 type SchemaMigrationsGuard struct {
 	ID int32 `json:"id"`
