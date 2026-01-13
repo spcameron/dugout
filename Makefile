@@ -296,9 +296,10 @@ sync/branch: confirm require-clean on-feature require-upstream
 	@git rebase @{u}
 	@echo "Rebasing main onto origin/main..."
 	@git rebase origin/main
+	@echo "... complete.\n"
 	@$(MAKE) --no-print-directory audit
 	@git push --force-with-lease
-	@echo "... complete.\n"
+	@echo "... sync complete.\n"
 
 ## sync: convenience alias for sync/branch
 .PHONY: sync
