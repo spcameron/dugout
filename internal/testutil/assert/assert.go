@@ -2,17 +2,16 @@ package assert
 
 import (
 	"errors"
+	"reflect"
 	"regexp"
 	"strings"
 	"testing"
-
-	"github.com/spcameron/dugout/internal/testutil"
 )
 
 func Equal[T any](t *testing.T, got, want T) {
 	t.Helper()
 
-	if !testutil.IsEqual(got, want) {
+	if isEqual(got, want) {
 		t.Errorf("got: %v; want: %v", got, want)
 	}
 }
@@ -20,7 +19,7 @@ func Equal[T any](t *testing.T, got, want T) {
 func NotEqual[T any](t *testing.T, got, want T) {
 	t.Helper()
 
-	if testutil.IsEqual(got, want) {
+	if isEqual(got, want) {
 		t.Errorf("got: %v; expected values to be different", got)
 	}
 }
@@ -44,7 +43,7 @@ func False(t *testing.T, got bool) {
 func Nil(t *testing.T, got any) {
 	t.Helper()
 
-	if !testutil.IsNil(got) {
+	if isNil(got) {
 		t.Errorf("got: %v; want: nil", got)
 	}
 }
@@ -52,7 +51,7 @@ func Nil(t *testing.T, got any) {
 func NotNil(t *testing.T, got any) {
 	t.Helper()
 
-	if testutil.IsNil(got) {
+	if isNil(got) {
 		t.Errorf("got: nil; want: non-nil")
 	}
 }
@@ -104,4 +103,39 @@ func MatchesRegexp(t *testing.T, got, pattern string) {
 	if !re.MatchString(got) {
 		t.Errorf("got: %q; want to match: %q", got, pattern)
 	}
+}
+
+type equaler[T any] interface {
+	Equal(T) bool
+}
+
+// isEqual prefers a type's Equal method when present; otherwise it falls back to DeepEqual.
+func isEqual[T any](got, want T) bool {
+	if isNil(got) && isNil(want) {
+		return true
+	}
+
+	if eq, ok := any(got).(equaler[T]); ok {
+		return eq.Equal(want)
+	}
+	if eq, ok := any(want).(equaler[T]); ok {
+		return eq.Equal(got)
+	}
+
+	return reflect.DeepEqual(got, want)
+}
+
+// isNil first checks for nil equality, then uses reflection to check typed nil inside an interface.
+func isNil(v any) bool {
+	if v == nil {
+		return true
+	}
+
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice, reflect.UnsafePointer:
+		return rv.IsNil()
+	}
+
+	return false
 }
