@@ -236,26 +236,72 @@ up-to-date: on-main
 	@git fetch origin; \
 	if [ "$$(git rev-parse HEAD)" != "$$(git rev-parse origin/main)" ]; then \
 		echo "Refusing: local HEAD does not match origin/main." >&2; \
-		echo "Hint: run 'git pull --ff-only' on main." >&2; \
+		echo "Hint: run 'make sync/main' (or 'make repair/main' if main has local-only commits)." >&2; \
 		exit 1; \
 	fi
 
-## sync/main: fast-forward main from origin/main
+## repair/main: reset local main to origin/main (keeps a backup branch)
+.PHONY: repair/main
+repair/main: confirm require-clean on-main
+	@set -e; \
+	git fetch origin; \
+	backup="backup/main-local-$$(date +%Y%m%d-%H%M%S)"; \
+	echo "Saving current main to '$$backup'..."; \
+	git branch "$$backup" HEAD; \
+	echo "Resetting main to origin/main..."; \
+	git reset --hard origin/main
+
+## sync/main: fast-forward main from origin/main (refuse if main has local-only commits)
 .PHONY: sync/main
 sync/main: confirm require-clean
-	@git switch main
-	@git pull --ff-only
-	
-## rebase/main: rebase current branch onto origin/main
+	@set -e; \
+	git switch main >/dev/null; \
+	git fetch origin; \
+	if ! git merge-base --is-ancestor HEAD origin/main; then \
+		echo "Refusing: local 'main' has commits not on origin/main (cannot fast-forward)." >&2; \
+		echo "Inspect with: git log --left-right --oneline origin/main...main" >&2; \
+		echo "If GitHub is authoritative (e.g., you squash-merged there), run: make repair/main" >&2; \
+		exit 1; \
+	fi; \
+	git pull --ff-only
+
+## sync/branch: rebase onto upstream then origin/main, audit, and publish (force-with-lease)
+.PHONY: sync/branch
+sync/branch: confirm require-clean on-feature require-upstream
+	@set -e; \
+	git fetch origin; \
+	up="$$(git rev-parse --abbrev-ref --symbolic-full-name @{u})"; \
+	git rebase "$$up"; \
+	git rebase origin/main; \
+	$(MAKE) audit; \
+	git push --force-with-lease
+
+## sync: convenience alias for sync/branch
+.PHONY: sync
+sync: sync/branch
+
+## rebase/upstream: rebase current branch onto its upstream (keeps branches linear)
+.PHONY: rebase/upstream
+rebase/upstream: confirm require-clean on-feature require-upstream
+	@set -e; \
+	git fetch origin; \
+	up="$$(git rev-parse --abbrev-ref --symbolic-full-name @{u})"; \
+	git rebase "$$up"
+
+## rebase/main: rebase current branch onto origin/main (keeps branches linear)
 .PHONY: rebase/main
 rebase/main: confirm require-clean on-feature
-	@git fetch origin
-	@git rebase origin/main
+	@set -e; \
+	git fetch origin; \
+	git rebase origin/main
 
-## branch/new: create and switch to a new work branch
+## branch/new: create and switch to a new work branch (from freshly synced main)
 .PHONY: branch/new
-branch/new: confirm require-clean on-main
-	@printf "Branch type (feature|fix|refactor|chore|docs): " ; \
+branch/new: confirm require-clean
+	@set -e; \
+	$(MAKE) on-main; \
+	$(MAKE) sync/main; \
+	printf "Branch type (feature|fix|refactor|chore|docs): " ; \
 	read type ; \
 	case "$$type" in feature|fix|refactor|chore|docs) ;; \
 		*) echo "Refusing: invalid type '$$type'." >&2; exit 1 ;; \
@@ -267,51 +313,49 @@ branch/new: confirm require-clean on-main
 	esac ; \
 	branch="$$type/$$slug" ; \
 	echo "Creating branch $$branch from main..." ; \
-	git pull --ff-only ; \
 	git switch -c "$$branch"
-	
-## branch/cleanup: switch to main, update it, and delete the previous feature branch locally
+
+## branch/cleanup: switch to main, sync it, and delete the previous branch locally (refuse if not fully merged)
 .PHONY: branch/cleanup
 branch/cleanup: confirm require-clean
-	@branch="$$(git rev-parse --abbrev-ref HEAD)"; \
+	@set -e; \
+	branch="$$(git rev-parse --abbrev-ref HEAD)"; \
 	if [ "$$branch" = "main" ]; then \
 		echo "error: refusing to delete 'main'"; \
 		exit 1; \
 	fi; \
 	echo "Cleaning up branch '$$branch'..."; \
-	git fetch origin; \
-	git switch main; \
-	git pull --ff-only; \
-	git diff --quiet origin/main.."$$branch" || { \
-		echo "error: '$$branch' has changes not in origin/main"; \
+	$(MAKE) sync/main; \
+	# Require that *all* commits on the branch are reachable from origin/main
+	git merge-base --is-ancestor "$$branch" origin/main || { \
+		echo "error: '$$branch' has commits not in origin/main (not fully merged)"; \
 		exit 1; \
 	}; \
 	git branch -D "$$branch"
 
-## push: push changes to the remote Git repository
+## push: fast-forward-only push (cheap pushes); refuse if it would be non-fast-forward
 .PHONY: push
-push: on-feature require-upstream
-	@git push
-	
+push: on-feature require-upstream require-clean
+	@set -e; \
+	up="$$(git rev-parse --abbrev-ref --symbolic-full-name @{u})"; \
+	if ! git merge-base --is-ancestor "$$up" HEAD; then \
+		echo "Refusing: upstream '$$up' is not an ancestor of HEAD (non-fast-forward push)." >&2; \
+		echo "Hint: run 'make sync/branch' (rebases + force-with-lease) to keep history linear." >&2; \
+		exit 1; \
+	fi; \
+	git push
+
 ## push/u: push current branch and set upstream to origin
 .PHONY: push/u
-push/u: on-feature
+push/u: on-feature require-clean
 	@branch="$$(git rev-parse --abbrev-ref HEAD)"; \
 	git push -u origin "$$branch"
-	
-## push/pr: rebase and update an open PR branch (force-with-lease)
-.PHONY: push/pr
-push/pr: confirm on-feature require-upstream require-clean
-	@git fetch origin
-	@git rebase origin/main
-	@$(MAKE) audit
-	@git push --force-with-lease
 	
 ## pr/create: create a GitHub PR for the current branch
 .PHONY: pr/create
 pr/create: confirm audit on-feature
 	@gh pr create
-	
+
 ## pr/view: open the current PR in the browser
 .PHONY: pr/view
 pr/view: on-feature
