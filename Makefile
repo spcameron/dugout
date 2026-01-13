@@ -329,7 +329,7 @@ push/u: on-feature require-clean
 ## pr/create: create a GitHub PR for the current branch
 .PHONY: pr/create
 pr/create: confirm audit on-feature
-	@gh pr create
+	@gh pr create --fill --editor
 
 ## pr/view: open the current PR in the browser
 .PHONY: pr/view
