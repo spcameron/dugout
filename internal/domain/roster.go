@@ -14,13 +14,13 @@ type Roster struct {
 	Entries []RosterEntry
 }
 
-func CanAddPlayer(r Roster, mlbID MLBPlayerID) error {
+func CanAddPlayer(r Roster, id PlayerID) error {
 	if len(r.Entries) >= MaxRosterSize {
 		return ErrRosterFull
 	}
 
 	for _, e := range r.Entries {
-		if e.MLBID == mlbID {
+		if e.PlayerID == id {
 			return ErrPlayerAlreadyOnRoster
 		}
 	}

@@ -27,9 +27,9 @@ func TestCanAddPlayer(t *testing.T) {
 	})
 
 	t.Run("add a player to 26-man roster", func(t *testing.T) {
-		ids := make([]domain.MLBPlayerID, domain.MaxRosterSize)
+		ids := make([]domain.PlayerID, domain.MaxRosterSize)
 		for i := 1; i <= domain.MaxRosterSize; i++ {
-			ids = append(ids, domain.MLBPlayerID(i))
+			ids = append(ids, domain.PlayerID(i))
 		}
 
 		r := roster(10, ids...)
@@ -38,7 +38,7 @@ func TestCanAddPlayer(t *testing.T) {
 	})
 }
 
-func roster(teamID domain.TeamID, ids ...domain.MLBPlayerID) domain.Roster {
+func roster(teamID domain.TeamID, ids ...domain.PlayerID) domain.Roster {
 	r := domain.Roster{
 		TeamID:  teamID,
 		Entries: make([]domain.RosterEntry, len(ids)),
@@ -46,7 +46,7 @@ func roster(teamID domain.TeamID, ids ...domain.MLBPlayerID) domain.Roster {
 
 	for i, id := range ids {
 		r.Entries[i] = domain.RosterEntry{
-			MLBID: id,
+			PlayerID: id,
 		}
 	}
 

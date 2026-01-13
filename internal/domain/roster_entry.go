@@ -1,5 +1,5 @@
 package domain
 
 type RosterEntry struct {
-	MLBID MLBPlayerID
+	PlayerID PlayerID
 }
