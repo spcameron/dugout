@@ -312,7 +312,7 @@ branch/cleanup: confirm require-clean
 		exit 1; \
 	fi; \
 	echo "Cleaning up branch '$$branch'..."; \
-	$(MAKE) sync/main; \
+	$(MAKE) --no-print-directory sync/main; \
 	git branch -D "$$branch"
 
 ## push: fast-forward-only push (cheap pushes); refuse if it would be non-fast-forward
