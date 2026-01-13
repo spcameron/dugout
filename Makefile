@@ -7,13 +7,13 @@
 ## help: print this help message
 .PHONY: help
 help:
-	@echo 'Usage:'
+	@echo "Usage:"
 	@sed -n 's/^##//p' $(MAKEFILE_LIST) | column -t -s ':' | sed -e 's/^/ /'
 
 ## confirm: prompt before running a destructive action
 .PHONY: confirm
 confirm:
-	@printf 'Are you sure? [y/N] ' && read ans && [ "$${ans:-N}" = y ]
+	@printf "Are you sure? [y/N] " && read ans && [ "$${ans:-N}" = y ]
 
 # ==================================================================================== #
 ## ---------------------
@@ -46,63 +46,84 @@ env/check:
 ## audit: run quality control checks
 .PHONY: audit
 audit: fmt-check mod-tidy-check mod-verify vet staticcheck test/race vulncheck
+	@echo "Audit complete.\n"
 
 ## mod-tidy-check: fail if go.mod/go.sum are not tidy
 .PHONY: mod-tidy-check
 mod-tidy-check:
+	@echo "Running tidy check..."
 	@go mod tidy -diff
-	
+	@echo "... complete.\n"	
+
 ## mod-verify: fail if module dependencies cannot be verified
 .PHONY: mod-verify
 mod-verify:
+	@echo "Running mod verify..."
 	@go mod verify
+	@echo "... complete.\n"
 	
 ## fmt-check: fail if gofmt would make changes (reports files)
 .PHONY: fmt-check
 fmt-check:
+	@echo "Running gofmt check..."
 	@files="$$(gofmt -l .)"; \
 	if [ -n "$$files" ]; then \
 		echo "Refusing: gofmt required on:" >&2; \
 		echo "$$files" >&2; \
 		exit 1; \
 	fi
+	@echo "... complete.\n"
 
 ## vet: run go vet
 .PHONY: vet
 vet:
+	@echo "Running go vet..."
 	@go vet ./...
+	@echo "... complete.\n"	
 	
 ## staticcheck: run staticcheck
 .PHONY: staticcheck
 staticcheck:
+	@echo "Running staticcheck..."
 	@go run honnef.co/go/tools/cmd/staticcheck@latest -checks=all,-ST1000,-U1000 ./...
+	@echo "... complete.\n"	
 	
 ## vulncheck: run govulncheck
 .PHONY: vulncheck
 vulncheck:
+	@echo "Running vulncheck..."
 	@go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+	@echo "... complete.\n"	
 	
 ## test: run tests
 .PHONY: test
 test:
+	@echo "Running tests..."
 	@go test -buildvcs ./...
+	@echo "... complete.\n"
 	
 ## test/race: run tests with race detector
 .PHONY: test/race
 test/race:
+	@echo "Running tests with race detector..."
 	@go test -race -buildvcs ./...
+	@echo "... complete.\n"	
 	
 ## test/cover: run all tests and display coverage
 .PHONY: test/cover
 test/cover:
+	@echo "Running tests and displaying coverage..."
 	@go test -buildvcs -coverprofile=/tmp/coverage.out ./...
 	@go tool cover -html=/tmp/coverage.out
+	@echo "... complete.\n"
 	
 ## test/integration: run integration tests against migrated test DB
 .PHONY: test/integration
 test/integration: env/check db/test/migrate/up
+	@echo "Running integration tests..."
 	@$(ENV_LOAD); \
 	go test -buildvcs -tags=integration ./...
+	@echo "... complete.\n"
 	
 ## upgradeable: list direct dependencies that have upgrades available
 .PHONY: upgradeable
@@ -122,16 +143,21 @@ govulncheck_version  ?= v1.1.4
 ## ci: reproducible, pinned quality gate for GitHub Actions
 .PHONY: ci
 ci: fmt-check mod-tidy-check mod-verify vet ci/staticcheck ci/vulncheck test
+	@echo "CI check complete.\n"
 
 ## ci/staticcheck: run staticcheck (pinned)
 .PHONY: ci/staticcheck
 ci/staticcheck:
+	@echo "Running staticcheck..."
 	@go run honnef.co/go/tools/cmd/staticcheck@$(staticcheck_version) -checks=all,-ST1000,-U1000 ./...
+	@echo "... complete.\n"
 
 ## ci/vulncheck: run govulncheck (pinned)
 .PHONY: ci/vulncheck
 ci/vulncheck:
+	@echo "Running vulncheck..."
 	@go run golang.org/x/vuln/cmd/govulncheck@$(govulncheck_version) ./...
+	@echo "... complete.\n"
 
 # ==================================================================================== #
 ## -----------
@@ -170,7 +196,7 @@ run/live: env/check
 	@echo "Running $(binary_name) with automatic refresh on file changes..."
 	@$(ENV_LOAD); \
 	go run github.com/cosmtrek/air@latest \
-		--build.cmd "$(MAKE) build" \
+		--build.cmd "$(MAKE) --no-print-directory build" \
 		--build.bin "/tmp/bin/$(binary_name)" \
 		--build.args_bin "$(ARGS)" \
 		--build.delay "100" \
@@ -243,6 +269,7 @@ up-to-date: on-main
 ## repair/main: reset local main to origin/main (keeps a backup branch)
 .PHONY: repair/main
 repair/main: confirm require-clean on-main
+	@echo "Repairing main..."
 	@set -e; \
 	git fetch origin; \
 	backup="backup/main-local-$$(date +%Y%m%d-%H%M%S)"; \
@@ -250,21 +277,29 @@ repair/main: confirm require-clean on-main
 	git branch "$$backup" HEAD; \
 	echo "Resetting main to origin/main..."; \
 	git reset --hard origin/main
+	@echo "... complete.\n"
 
 ## sync/main: fast-forward main from origin/main (no confirm; safe to call from other targets)
 .PHONY: sync/main
 sync/main: require-clean
+	@echo "Syncing main from origin/main..."
 	@git switch main >/dev/null
 	@git pull --ff-only
+	@echo "... complete.\n"
 
 ## sync/branch: rebase onto upstream then origin/main, audit, and publish (force-with-lease)
 .PHONY: sync/branch
 sync/branch: confirm require-clean on-feature require-upstream
+	@echo "Syncing branch..."
+	@echo "Rebasing branch onto upstream..."
 	@git fetch origin
 	@git rebase @{u}
+	@echo "Rebasing main onto origin/main..."
 	@git rebase origin/main
-	@$(MAKE) audit
+	@echo "... complete.\n"
+	@$(MAKE) --no-print-directory audit
 	@git push --force-with-lease
+	@echo "... sync complete.\n"
 
 ## sync: convenience alias for sync/branch
 .PHONY: sync
@@ -273,21 +308,25 @@ sync: sync/branch
 ## rebase/upstream: rebase current branch onto its upstream (keeps branches linear)
 .PHONY: rebase/upstream
 rebase/upstream: confirm require-clean on-feature require-upstream
+	@echo "Rebasing branch onto upstream..."
 	@git fetch origin
 	@git rebase @{u}
+	@echo "... complete.\n"
 
 ## rebase/main: rebase current branch onto origin/main (keeps branches linear)
 .PHONY: rebase/main
 rebase/main: confirm require-clean on-feature
+	@echo "Rebasing main onto origin/main..."
 	@git fetch origin
 	@git rebase origin/main
+	@echo "... complete.\n"
 
 ## branch/new: create and switch to a new work branch (from freshly synced main)
 .PHONY: branch/new
 branch/new: confirm require-clean
 	@set -e; \
-	$(MAKE) on-main; \
-	$(MAKE) sync/main; \
+	$(MAKE) --no-print-directory on-main; \
+	$(MAKE) --no-print-directory sync/main; \
 	printf "Branch type (feature|fix|refactor|chore|docs): " ; \
 	read type ; \
 	case "$$type" in feature|fix|refactor|chore|docs) ;; \
@@ -329,7 +368,7 @@ push/u: on-feature require-clean
 ## pr/create: create a GitHub PR for the current branch
 .PHONY: pr/create
 pr/create: confirm audit on-feature
-	@gh pr create --fill --editor
+	@gh pr create --fill-verbose --editor
 
 ## pr/view: open the current PR in the browser
 .PHONY: pr/view
