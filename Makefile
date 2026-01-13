@@ -251,16 +251,16 @@ repair/main: confirm require-clean on-main
 	echo "Resetting main to origin/main..."; \
 	git reset --hard origin/main
 
-## sync/main: fast-forward main from origin/main (refuse if main has local-only commits)
+## sync/main: fast-forward main from origin/main (no confirm; safe to call from other targets)
 .PHONY: sync/main
-sync/main: confirm require-clean
+sync/main: require-clean
 	@set -e; \
 	git switch main >/dev/null; \
 	git fetch origin; \
 	if ! git merge-base --is-ancestor HEAD origin/main; then \
 		echo "Refusing: local 'main' has commits not on origin/main (cannot fast-forward)." >&2; \
 		echo "Inspect with: git log --left-right --oneline origin/main...main" >&2; \
-		echo "If GitHub is authoritative (e.g., you squash-merged there), run: make repair/main" >&2; \
+		echo "If GitHub is authoritative, run: make repair/main" >&2; \
 		exit 1; \
 	fi; \
 	git pull --ff-only
@@ -315,7 +315,7 @@ branch/new: confirm require-clean
 	echo "Creating branch $$branch from main..." ; \
 	git switch -c "$$branch"
 
-## branch/cleanup: switch to main, sync it, and delete the previous branch locally (refuse if not fully merged)
+## branch/cleanup: sync main (from GitHub) and delete the current branch locally (squash-merge safe)
 .PHONY: branch/cleanup
 branch/cleanup: confirm require-clean
 	@set -e; \
@@ -326,8 +326,8 @@ branch/cleanup: confirm require-clean
 	fi; \
 	echo "Cleaning up branch '$$branch'..."; \
 	$(MAKE) sync/main; \
-	git merge-base --is-ancestor "$$branch" origin/main || { \
-		echo "error: '$$branch' has commits not in origin/main (not fully merged)"; \
+	git diff --quiet origin/main..."$$branch" || { \
+		echo "error: '$$branch' differs from origin/main (not fully merged)"; \
 		exit 1; \
 	}; \
 	git branch -D "$$branch"
