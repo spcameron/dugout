@@ -326,7 +326,6 @@ branch/cleanup: confirm require-clean
 	fi; \
 	echo "Cleaning up branch '$$branch'..."; \
 	$(MAKE) sync/main; \
-	# Require that *all* commits on the branch are reachable from origin/main
 	git merge-base --is-ancestor "$$branch" origin/main || { \
 		echo "error: '$$branch' has commits not in origin/main (not fully merged)"; \
 		exit 1; \
