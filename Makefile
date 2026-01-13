@@ -46,7 +46,7 @@ env/check:
 ## audit: run quality control checks
 .PHONY: audit
 audit: fmt-check mod-tidy-check mod-verify vet staticcheck test/race vulncheck
-	@echo "Audit complete."
+	@echo "Audit complete.\n"
 
 ## mod-tidy-check: fail if go.mod/go.sum are not tidy
 .PHONY: mod-tidy-check
@@ -143,7 +143,7 @@ govulncheck_version  ?= v1.1.4
 ## ci: reproducible, pinned quality gate for GitHub Actions
 .PHONY: ci
 ci: fmt-check mod-tidy-check mod-verify vet ci/staticcheck ci/vulncheck test
-	@echo "CI check complete."
+	@echo "CI check complete.\n"
 
 ## ci/staticcheck: run staticcheck (pinned)
 .PHONY: ci/staticcheck
