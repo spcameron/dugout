@@ -170,7 +170,7 @@ run/live: env/check
 	@echo "Running $(binary_name) with automatic refresh on file changes..."
 	@$(ENV_LOAD); \
 	go run github.com/cosmtrek/air@latest \
-		--build.cmd "$(MAKE) build" \
+		--build.cmd "$(MAKE) --no-print-directory build" \
 		--build.bin "/tmp/bin/$(binary_name)" \
 		--build.args_bin "$(ARGS)" \
 		--build.delay "100" \
@@ -263,7 +263,7 @@ sync/branch: confirm require-clean on-feature require-upstream
 	@git fetch origin
 	@git rebase @{u}
 	@git rebase origin/main
-	@$(MAKE) audit
+	@$(MAKE) --no-print-directory audit
 	@git push --force-with-lease
 
 ## sync: convenience alias for sync/branch
@@ -286,8 +286,8 @@ rebase/main: confirm require-clean on-feature
 .PHONY: branch/new
 branch/new: confirm require-clean
 	@set -e; \
-	$(MAKE) on-main; \
-	$(MAKE) sync/main; \
+	$(MAKE) --no-print-directory on-main; \
+	$(MAKE) --no-print-directory sync/main; \
 	printf "Branch type (feature|fix|refactor|chore|docs): " ; \
 	read type ; \
 	case "$$type" in feature|fix|refactor|chore|docs) ;; \
