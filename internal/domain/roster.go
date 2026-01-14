@@ -37,7 +37,7 @@ func (r Roster) Counts() RosterCounts {
 		case StatusInactive:
 			rc.Inactive++
 		default:
-			panic(fmt.Sprintf("unrecognized roster status %v", e.RosterStatus))
+			panic(fmt.Errorf("unrecognized roster status: %v", e.RosterStatus))
 		}
 
 		rc.Total++

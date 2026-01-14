@@ -212,22 +212,58 @@ func TestRosterCounts(t *testing.T) {
 			activeHitters:  domain.MaxActiveHitters,
 			activePitchers: domain.MaxActivePitchers,
 		},
+		{
+			name:           "full roster with mid-range active hitters and pitchers",
+			rosterSize:     domain.MaxRosterSize,
+			activeHitters:  domain.MaxActiveHitters / 2,
+			activePitchers: domain.MaxActivePitchers / 2,
+		},
 	}
 
 	for _, tc := range tests {
-		r := activateRoster(
-			roster(999, tc.rosterSize),
-			tc.activeHitters,
-			tc.activePitchers,
-		)
+		t.Run(tc.name, func(t *testing.T) {
+			r := activateRoster(
+				roster(999, tc.rosterSize),
+				tc.activeHitters,
+				tc.activePitchers,
+			)
 
-		rc := r.Counts()
+			rc := r.Counts()
 
-		assert.Equal(t, rc.Total, tc.rosterSize)
-		assert.Equal(t, rc.ActiveHitters, tc.activeHitters)
-		assert.Equal(t, rc.ActivePitchers, tc.activePitchers)
-		assert.Equal(t, rc.Inactive, (tc.rosterSize - tc.activeHitters - tc.activePitchers))
+			assert.Equal(t, rc.Total, tc.rosterSize)
+			assert.Equal(t, rc.Total, len(r.Entries))
+			assert.Equal(t, rc.ActiveHitters, tc.activeHitters)
+			assert.Equal(t, rc.ActivePitchers, tc.activePitchers)
+			assert.Equal(t, rc.Inactive, (tc.rosterSize - tc.activeHitters - tc.activePitchers))
+		})
 	}
+
+	t.Run("panics on unrecognized roster status", func(t *testing.T) {
+		r := domain.Roster{
+			TeamID: 999,
+			Entries: []domain.RosterEntry{
+				{
+					PlayerID:     1,
+					RosterStatus: domain.RosterStatus(999),
+				},
+			},
+		}
+
+		defer func() {
+			got := recover()
+			require.NotNil(t, got)
+
+			err, ok := got.(error)
+			if !ok {
+				t.Fatalf("expected panic value to be error, got %T (%v)", got, got)
+			}
+
+			msg := err.Error()
+			require.Contains(t, msg, "unrecognized roster status: ")
+		}()
+
+		_ = r.Counts()
+	})
 }
 
 // roster returns a Roster containing a given number of players.
