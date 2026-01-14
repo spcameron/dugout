@@ -381,7 +381,7 @@ pr/merge: confirm require-clean on-feature
 	@set -e; \
 	branch="$$(git rev-parse --abbrev-ref HEAD)"; \
 	echo "Merging PR for branch '$$branch'..."; \
-	gh pr merge --squash --body-from-pr --edit --delete-branch
+	gh pr merge --squash --delete-branch
 	@echo "... complete.\n"
 
 # ==================================================================================== #
