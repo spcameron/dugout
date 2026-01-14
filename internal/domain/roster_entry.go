@@ -1,5 +1,14 @@
 package domain
 
+type RosterStatus int
+
+const (
+	StatusInactive RosterStatus = iota + 1
+	StatusActiveHitter
+	StatusActivePitcher
+)
+
 type RosterEntry struct {
-	MLBID MLBPlayerID
+	PlayerID     PlayerID
+	RosterStatus RosterStatus
 }
