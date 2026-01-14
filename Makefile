@@ -22,7 +22,7 @@ confirm:
 # ==================================================================================== #
 
 ENV_FILE := .env
-ENV_LOAD := set -a; . "$(ENV_FILE)"; set +a
+ENV_LOAD := set -e; set -a; . "$(ENV_FILE)"; set +a
 
 # Optionally, provide a .env.test for manual test-driving the application
 
@@ -219,7 +219,7 @@ run/live: env/check
 require-clean:
 	@status="$$(git status --porcelain)"; \
 	if [ -n "$$status" ]; then \
-		echo "Refusing: working tree is dirty (commit/stash first)." >&2; \
+		echo "ERROR: working tree is dirty (commit/stash first)." >&2; \
 		echo "$$status" >&2; \
 		exit 1; \
 	fi
@@ -229,7 +229,7 @@ require-clean:
 require-upstream:
 	@up="$$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || true)"; \
 	if [ -z "$$up" ]; then \
-		echo "Refusing: no upstream set for this branch. Run 'make push/u' first." >&2; \
+		echo "ERROR: no upstream set for this branch (run 'make push/u' first)." >&2; \
 		exit 1; \
 	fi
 	
@@ -238,7 +238,7 @@ require-upstream:
 on-main:
 	@branch="$$(git rev-parse --abbrev-ref HEAD)"; \
 	if [ "$$branch" != "main" ]; then \
-		echo "Refusing: not on main (current: $$branch)." >&2; \
+		echo "ERROR: not on main (current: $$branch)." >&2; \
 		exit 1; \
 	fi
 
@@ -247,13 +247,13 @@ on-main:
 on-feature:
 	@branch="$$(git rev-parse --abbrev-ref HEAD)"; \
 	if [ "$$branch" = "HEAD" ]; then \
-		echo "Refusing: detached HEAD (checkout a branch)." >&2; \
+		echo "ERROR: detached HEAD (checkout a branch)." >&2; \
 		exit 1; \
 	fi; \
 	case "$$branch" in \
 		feature/*|fix/*|refactor/*|chore/*|docs/*) ;; \
-		main) echo "Refusing: on main; use a work branch (feature/*, fix/*, refactor/*, chore/*, docs/*)." >&2; exit 1 ;; \
-		*) echo "Refusing: branch '$$branch' not in allowed prefixes (feature/, fix/, refactor/, chore/, docs/)." >&2; exit 1 ;; \
+		main) echo "ERROR: on main; use a work branch (feature/*, fix/*, refactor/*, chore/*, docs/*)." >&2; exit 1 ;; \
+		*) echo "ERROR: branch '$$branch' not in allowed prefixes (feature/, fix/, refactor/, chore/, docs/)." >&2; exit 1 ;; \
 	esac
 
 ## up-to-date: fail unless local HEAD matches origin/main
@@ -261,8 +261,7 @@ on-feature:
 up-to-date: on-main
 	@git fetch origin; \
 	if [ "$$(git rev-parse HEAD)" != "$$(git rev-parse origin/main)" ]; then \
-		echo "Refusing: local HEAD does not match origin/main." >&2; \
-		echo "Hint: run 'make sync/main'." >&2; \
+		echo "ERROR: local HEAD does not match origin/main (run 'make sync/main')." >&2; \
 		exit 1; \
 	fi
 
@@ -330,12 +329,12 @@ branch/new: confirm require-clean
 	printf "Branch type (feature|fix|refactor|chore|docs): " ; \
 	read type ; \
 	case "$$type" in feature|fix|refactor|chore|docs) ;; \
-		*) echo "Refusing: invalid type '$$type'." >&2; exit 1 ;; \
+		*) echo "ERROR: invalid type '$$type'." >&2; exit 1 ;; \
 	esac ; \
 	printf "Slug (lowercase, digits, hyphens; e.g. add-login): " ; \
 	read slug ; \
 	case "$$slug" in ""|[^a-z0-9]*|*[!a-z0-9-]*) \
-		echo "Refusing: invalid slug '$$slug'." >&2; exit 1 ;; \
+		echo "ERROR: invalid slug '$$slug'." >&2; exit 1 ;; \
 	esac ; \
 	branch="$$type/$$slug" ; \
 	echo "Creating branch $$branch from main..." ; \
@@ -347,12 +346,13 @@ branch/cleanup: confirm require-clean
 	@set -e; \
 	branch="$$(git rev-parse --abbrev-ref HEAD)"; \
 	if [ "$$branch" = "main" ]; then \
-		echo "error: refusing to delete 'main'"; \
+		echo "ERROR: refusing to delete 'main'"; \
 		exit 1; \
 	fi; \
 	echo "Cleaning up branch '$$branch'..."; \
 	$(MAKE) --no-print-directory sync/main; \
 	git branch -D "$$branch"
+	@echo "... complete.\n"
 
 ## push: fast-forward-only push (cheap pushes); refuse if it would be non-fast-forward
 .PHONY: push
@@ -374,6 +374,15 @@ pr/create: confirm audit on-feature
 .PHONY: pr/view
 pr/view: on-feature
 	@gh pr view --web
+
+## pr/merge: squash-merge the PR for the current branch
+.PHONY: pr/merge
+pr/merge: confirm require-clean on-feature
+	@set -e; \
+	branch="$$(git rev-parse --abbrev-ref HEAD)"; \
+	echo "Merging PR for branch '$$branch'..."; \
+	gh pr merge --squash --delete-branch
+	@echo "... complete.\n"
 
 # ==================================================================================== #
 ## --------
