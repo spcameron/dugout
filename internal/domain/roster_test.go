@@ -8,6 +8,7 @@ import (
 )
 
 func TestCanAddPlayer(t *testing.T) {
+
 	t.Run("add player to empty roster", func(t *testing.T) {
 		r := roster(100, 0)
 		p := domain.Player{
@@ -50,69 +51,144 @@ func TestCanAddPlayer(t *testing.T) {
 }
 
 func TestCanActivatePlayer(t *testing.T) {
-	t.Run("allow activation when active hitters is below cap", func(t *testing.T) {
-		active := domain.MaxActiveHitters - 1
-		r := activateRoster(roster(100, domain.MaxRosterSize), active, 0)
-		p := domain.Player{
-			ID:   domain.PlayerID(active + 1),
-			Role: domain.RoleHitter,
-		}
+	capacityCases := []struct {
+		name           string
+		activeHitters  int
+		activePitchers int
+		role           domain.PlayerRole
+		wantErr        error
+	}{
+		{
+			name:           "allow activating a hitter when active hitters is below cap",
+			activeHitters:  domain.MaxActiveHitters - 1,
+			activePitchers: 0,
+			role:           domain.RoleHitter,
+			wantErr:        nil,
+		},
+		{
+			name:           "reject activating a hitter when active hitters is at cap",
+			activeHitters:  domain.MaxActiveHitters,
+			activePitchers: 0,
+			role:           domain.RoleHitter,
+			wantErr:        domain.ErrActiveHittersFull,
+		},
+		{
+			name:           "allow activating a hitter when active pitchers is at cap",
+			activeHitters:  0,
+			activePitchers: domain.MaxActivePitchers,
+			role:           domain.RoleHitter,
+			wantErr:        nil,
+		},
+		{
+			name:           "allow activating a pitcher when active pitchers is below cap",
+			activeHitters:  0,
+			activePitchers: domain.MaxActivePitchers - 1,
+			role:           domain.RolePitcher,
+			wantErr:        nil,
+		},
+		{
+			name:           "reject activating a pitcher when active pitchers is at cap",
+			activeHitters:  0,
+			activePitchers: domain.MaxActivePitchers,
+			role:           domain.RolePitcher,
+			wantErr:        domain.ErrActivePitchersFull,
+		},
+		{
+			name:           "allow activating a pitcher when active hitters is at cap",
+			activeHitters:  domain.MaxActiveHitters,
+			activePitchers: 0,
+			role:           domain.RolePitcher,
+			wantErr:        nil,
+		},
+	}
 
-		err := domain.CanActivatePlayer(r, p.ID, p.Role)
-		require.NoError(t, err)
-	})
+	for _, tc := range capacityCases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := activateRoster(
+				roster(999, domain.MaxRosterSize),
+				tc.activeHitters,
+				tc.activePitchers,
+			)
 
-	t.Run("reject activation when active hitters is at cap", func(t *testing.T) {
-		active := domain.MaxActiveHitters
-		r := activateRoster(roster(100, domain.MaxRosterSize), active, 0)
-		p := domain.Player{
-			ID:   domain.PlayerID(active + 1),
-			Role: domain.RoleHitter,
-		}
+			// fixed, known-inactive player
+			candidateID := domain.PlayerID(domain.MaxRosterSize)
 
-		err := domain.CanActivatePlayer(r, p.ID, p.Role)
-		require.ErrorIs(t, err, domain.ErrActiveHittersFull)
-	})
+			err := domain.CanActivatePlayer(r, candidateID, tc.role)
 
-	t.Run("allow activation when active pitchers is below cap", func(t *testing.T) {
-		active := domain.MaxActivePitchers - 1
-		r := activateRoster(roster(100, domain.MaxRosterSize), 0, active)
-		p := domain.Player{
-			ID:   domain.PlayerID(active + 1),
-			Role: domain.RolePitcher,
-		}
+			if tc.wantErr == nil {
+				require.NoError(t, err)
+			} else {
+				require.ErrorIs(t, err, tc.wantErr)
+			}
+		})
+	}
 
-		err := domain.CanActivatePlayer(r, p.ID, p.Role)
-		require.NoError(t, err)
-	})
+	membershipCases := []struct {
+		name           string
+		activeHitters  int
+		activePitchers int
+		role           domain.PlayerRole
+		id             int
+		wantErr        error
+	}{
+		{
+			name:           "reject activating a hitter not on the roster",
+			activeHitters:  0,
+			activePitchers: 0,
+			role:           domain.RoleHitter,
+			id:             domain.MaxRosterSize + 1,
+			wantErr:        domain.ErrPlayerNotOnRoster,
+		},
+		{
+			name:           "reject activating a pitcher not on the roster",
+			activeHitters:  0,
+			activePitchers: 0,
+			role:           domain.RolePitcher,
+			id:             domain.MaxRosterSize + 1,
+			wantErr:        domain.ErrPlayerNotOnRoster,
+		},
+		{
+			name:           "reject activating a hitter when already activated",
+			activeHitters:  domain.MaxActiveHitters - 1,
+			activePitchers: 0,
+			role:           domain.RoleHitter,
+			id:             1,
+			wantErr:        domain.ErrPlayerAlreadyActive,
+		},
+		{
+			name:           "reject activating a pitcher when already activated",
+			activeHitters:  0,
+			activePitchers: domain.MaxActivePitchers - 1,
+			role:           domain.RolePitcher,
+			id:             1,
+			wantErr:        domain.ErrPlayerAlreadyActive,
+		},
+	}
 
-	t.Run("reject activation when active pitchers is at cap", func(t *testing.T) {
-		active := domain.MaxActivePitchers
-		r := activateRoster(roster(100, domain.MaxRosterSize), 0, active)
-		p := domain.Player{
-			ID:   domain.PlayerID(active + 1),
-			Role: domain.RolePitcher,
-		}
+	for _, tc := range membershipCases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := activateRoster(
+				roster(999, domain.MaxRosterSize),
+				tc.activeHitters,
+				tc.activePitchers,
+			)
 
-		err := domain.CanActivatePlayer(r, p.ID, p.Role)
-		require.ErrorIs(t, err, domain.ErrActivePitchersFull)
-	})
+			candidateID := domain.PlayerID(tc.id)
 
-	t.Run("activate a player not on the team", func(t *testing.T) {
-		r := roster(100, 1)
-		p := domain.Player{
-			ID: 2,
-		}
+			err := domain.CanActivatePlayer(r, candidateID, tc.role)
 
-		err := domain.CanActivatePlayer(r, p.ID, p.Role)
-		require.ErrorIs(t, err, domain.ErrPlayerNotOnRoster)
-	})
+			if tc.wantErr == nil {
+				require.NoError(t, err)
+			} else {
+				require.ErrorIs(t, err, tc.wantErr)
+			}
+		})
+	}
 }
 
 // roster returns a Roster containing a given number of players.
 //
-// The roster will not exceed the MaxRosterSize, and players will
-// be assigned consecutive PlayerIDs beginning from 1.
+// The roster will not exceed the MaxRosterSize, and players will be assigned consecutive PlayerIDs beginning from 1.
 // Panics if the number of players is less than zero.
 func roster(teamID domain.TeamID, players int) domain.Roster {
 	if players < 0 {
@@ -136,7 +212,7 @@ func roster(teamID domain.TeamID, players int) domain.Roster {
 	return r
 }
 
-// activateRoster returns a Roster with a given number of activate hitters and active pitchers.
+// activateRoster returns a Roster with a given number of active hitters and active pitchers.
 //
 // The number of hitters and pitchers will not exceed the MaxActiveHitters and MaxActivePitchers.
 // Creates a shallow copy of the Roster.Entries slice, so shared ownership is safe.

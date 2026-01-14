@@ -11,6 +11,7 @@ const (
 var (
 	ErrActiveHittersFull     = errors.New("roster already has the maximum active hitters")
 	ErrActivePitchersFull    = errors.New("roster already has the maximum active pitchers")
+	ErrPlayerAlreadyActive   = errors.New("player already activated")
 	ErrPlayerAlreadyOnRoster = errors.New("player already on roster")
 	ErrRosterFull            = errors.New("roster is already full")
 	ErrPlayerNotOnRoster     = errors.New("player is not on the roster")
@@ -46,6 +47,9 @@ func CanActivatePlayer(r Roster, id PlayerID, role PlayerRole) error {
 	for _, e := range r.Entries {
 		if e.PlayerID == id {
 			onRoster = true
+			if e.RosterStatus != StatusInactive {
+				return ErrPlayerAlreadyActive
+			}
 		}
 		switch e.RosterStatus {
 		case StatusActiveHitter:
