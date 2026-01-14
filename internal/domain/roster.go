@@ -1,6 +1,9 @@
 package domain
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 const (
 	MaxRosterSize     = 26
@@ -22,6 +25,34 @@ type Roster struct {
 	Entries []RosterEntry
 }
 
+func (r Roster) Counts() RosterCounts {
+	rc := RosterCounts{}
+
+	for _, e := range r.Entries {
+		switch e.RosterStatus {
+		case StatusActiveHitter:
+			rc.ActiveHitters++
+		case StatusActivePitcher:
+			rc.ActivePitchers++
+		case StatusInactive:
+			rc.Inactive++
+		default:
+			panic(fmt.Sprintf("unrecognized roster status %v", e.RosterStatus))
+		}
+
+		rc.Total++
+	}
+
+	return rc
+}
+
+type RosterCounts struct {
+	Total          int
+	ActiveHitters  int
+	ActivePitchers int
+	Inactive       int
+}
+
 func CanAddPlayer(r Roster, id PlayerID) error {
 	if len(r.Entries) >= MaxRosterSize {
 		return ErrRosterFull
@@ -37,27 +68,16 @@ func CanAddPlayer(r Roster, id PlayerID) error {
 }
 
 func CanActivatePlayer(r Roster, id PlayerID, role PlayerRole) error {
-	var (
-		onRoster       bool
-		activeHitters  int
-		activePitchers int
-		inactive       int
-	)
+	var onRoster bool
 
 	for _, e := range r.Entries {
 		if e.PlayerID == id {
-			onRoster = true
 			if e.RosterStatus != StatusInactive {
 				return ErrPlayerAlreadyActive
 			}
-		}
-		switch e.RosterStatus {
-		case StatusActiveHitter:
-			activeHitters++
-		case StatusActivePitcher:
-			activePitchers++
-		case StatusInactive:
-			inactive++
+
+			onRoster = true
+			break
 		}
 	}
 
@@ -65,11 +85,12 @@ func CanActivatePlayer(r Roster, id PlayerID, role PlayerRole) error {
 		return ErrPlayerNotOnRoster
 	}
 
-	if role == RoleHitter && activeHitters >= MaxActiveHitters {
+	rc := r.Counts()
+
+	if role == RoleHitter && rc.ActiveHitters >= MaxActiveHitters {
 		return ErrActiveHittersFull
 	}
-
-	if role == RolePitcher && activePitchers >= MaxActivePitchers {
+	if role == RolePitcher && rc.ActivePitchers >= MaxActivePitchers {
 		return ErrActivePitchersFull
 	}
 

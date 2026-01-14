@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/spcameron/dugout/internal/domain"
+	"github.com/spcameron/dugout/internal/testutil/assert"
 	"github.com/spcameron/dugout/internal/testutil/require"
 )
 
@@ -183,6 +184,49 @@ func TestCanActivatePlayer(t *testing.T) {
 				require.ErrorIs(t, err, tc.wantErr)
 			}
 		})
+	}
+}
+
+func TestRosterCounts(t *testing.T) {
+	tests := []struct {
+		name           string
+		rosterSize     int
+		activeHitters  int
+		activePitchers int
+	}{
+		{
+			name:           "empty roster",
+			rosterSize:     0,
+			activeHitters:  0,
+			activePitchers: 0,
+		},
+		{
+			name:           "full roster with no active hitters or pitchers",
+			rosterSize:     domain.MaxRosterSize,
+			activeHitters:  0,
+			activePitchers: 0,
+		},
+		{
+			name:           "full roster with maximum active hitters and pitchers",
+			rosterSize:     domain.MaxRosterSize,
+			activeHitters:  domain.MaxActiveHitters,
+			activePitchers: domain.MaxActivePitchers,
+		},
+	}
+
+	for _, tc := range tests {
+		r := activateRoster(
+			roster(999, tc.rosterSize),
+			tc.activeHitters,
+			tc.activePitchers,
+		)
+
+		rc := r.Counts()
+
+		assert.Equal(t, rc.Total, tc.rosterSize)
+		assert.Equal(t, rc.ActiveHitters, tc.activeHitters)
+		assert.Equal(t, rc.ActivePitchers, tc.activePitchers)
+		assert.Equal(t, rc.Inactive, (tc.rosterSize - tc.activeHitters - tc.activePitchers))
 	}
 }
 

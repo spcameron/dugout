@@ -11,7 +11,7 @@ import (
 func Equal[T any](t *testing.T, got, want T) {
 	t.Helper()
 
-	if isEqual(got, want) {
+	if !isEqual(got, want) {
 		t.Fatalf("got: %v; want: %v", got, want)
 	}
 }
