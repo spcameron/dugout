@@ -33,55 +33,74 @@ var tomorrowLock = time.Date(
 	nyc,
 )
 
-func TestCanAddPlayer(t *testing.T) {
+func TestDecideAddPlayer(t *testing.T) {
 	testCases := []struct {
-		name       string
-		rosterSize int
-		playerID   int
-		wantErr    error
+		name        string
+		rosterSize  int
+		cutoff      time.Time
+		playerID    int
+		effectiveAt time.Time
+		wantErr     error
 	}{
 		{
-			name:       "allow adding player to empty roster",
-			rosterSize: 0,
-			playerID:   1,
-			wantErr:    nil,
+			name:        "allow adding player to empty roster",
+			rosterSize:  0,
+			cutoff:      todayLock,
+			playerID:    1,
+			effectiveAt: tomorrowLock,
+			wantErr:     nil,
 		},
 		{
-			name:       "allow adding player to roster below cap",
-			rosterSize: domain.MaxRosterSize - 1,
-			playerID:   domain.MaxRosterSize,
-			wantErr:    nil,
+			name:        "allow adding player to roster below cap",
+			rosterSize:  domain.MaxRosterSize - 1,
+			cutoff:      todayLock,
+			playerID:    domain.MaxRosterSize,
+			effectiveAt: tomorrowLock,
+			wantErr:     nil,
 		},
 		{
-			name:       "reject adding player to roster at cap",
-			rosterSize: domain.MaxRosterSize,
-			playerID:   domain.MaxRosterSize + 1,
-			wantErr:    domain.ErrRosterFull,
+			name:        "reject adding player to roster at cap",
+			rosterSize:  domain.MaxRosterSize,
+			cutoff:      todayLock,
+			playerID:    domain.MaxRosterSize + 1,
+			effectiveAt: tomorrowLock,
+			wantErr:     domain.ErrRosterFull,
 		},
 		{
-			name:       "reject adding player already on roster",
-			rosterSize: 1,
-			playerID:   1,
-			wantErr:    domain.ErrPlayerAlreadyOnRoster,
+			name:        "reject adding player already on roster",
+			rosterSize:  1,
+			cutoff:      todayLock,
+			playerID:    1,
+			effectiveAt: tomorrowLock,
+			wantErr:     domain.ErrPlayerAlreadyOnRoster,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			r := rosterView(999, tc.rosterSize)
+			r := rosterViewAsOf(999, tc.rosterSize, tc.cutoff)
 			candidateID := domain.PlayerID(tc.playerID)
 
-			err := r.CanAddPlayer(candidateID)
+			events, err := r.DecideAddPlayer(candidateID, tc.effectiveAt)
+
 			if tc.wantErr == nil {
 				require.NoError(t, err)
+				require.Equal(t, len(events), 1)
+
+				ev, ok := events[0].(domain.AddedPlayerToRoster)
+				require.True(t, ok)
+
+				require.Equal(t, ev.EffectiveAt, tc.effectiveAt)
+				require.Equal(t, ev.PlayerID, candidateID)
 			} else {
+				require.Nil(t, events)
 				require.ErrorIs(t, err, tc.wantErr)
 			}
 		})
 	}
 }
 
-func TestCanActivatePlayer(t *testing.T) {
+func TestValidateActivatePlayer(t *testing.T) {
 	capacityCases := []struct {
 		name           string
 		activeHitters  int
@@ -144,7 +163,7 @@ func TestCanActivatePlayer(t *testing.T) {
 			// fixed, known-inactive player
 			candidateID := domain.PlayerID(domain.MaxRosterSize)
 
-			err := r.CanActivatePlayer(candidateID, tc.role)
+			err := r.ValidateActivatePlayer(candidateID, tc.role)
 
 			if tc.wantErr == nil {
 				require.NoError(t, err)
@@ -206,7 +225,7 @@ func TestCanActivatePlayer(t *testing.T) {
 
 			candidateID := domain.PlayerID(tc.playerID)
 
-			err := r.CanActivatePlayer(candidateID, tc.role)
+			err := r.ValidateActivatePlayer(candidateID, tc.role)
 
 			if tc.wantErr == nil {
 				require.NoError(t, err)
@@ -296,27 +315,29 @@ func TestRosterCounts(t *testing.T) {
 	})
 }
 
-func TestDecideAddPlayer(t *testing.T) {
-	t.Run("allow adding player to empty roster", func(t *testing.T) {
-		r := domain.RosterView{
-			TeamID:           999,
-			Entries:          []domain.RosterEntry{},
-			EffectiveThrough: todayLock,
+func rosterViewAsOf(teamID domain.TeamID, players int, cutoff time.Time) domain.RosterView {
+	if players < 0 {
+		panic("players cannot be negative")
+	}
+
+	if players > domain.MaxRosterSize {
+		panic("players exceeds MaxRosterSize")
+	}
+
+	r := domain.RosterView{
+		TeamID:           teamID,
+		Entries:          make([]domain.RosterEntry, players),
+		EffectiveThrough: cutoff,
+	}
+
+	for i := range players {
+		r.Entries[i] = domain.RosterEntry{
+			PlayerID:     domain.PlayerID(i + 1),
+			RosterStatus: domain.StatusInactive,
 		}
-		candidateID := domain.PlayerID(1)
-		effectiveAt := tomorrowLock
+	}
 
-		events, err := r.DecideAddPlayer(candidateID, effectiveAt)
-
-		require.NoError(t, err)
-		require.Equal(t, len(events), 1)
-
-		ev, ok := events[0].(domain.AddedPlayerToRoster)
-		require.True(t, ok)
-
-		require.Equal(t, ev.EffectiveAt, effectiveAt)
-		require.Equal(t, ev.PlayerID, candidateID)
-	})
+	return r
 }
 
 // rosterView returns a Roster containing a given number of players.

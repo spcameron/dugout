@@ -55,8 +55,9 @@ func (r RosterView) Counts() RosterCounts {
 	return rc
 }
 
+// DecideAddPlayer returns the AddedPlayerToRoster events that should be recorded if allowed.
 func (r RosterView) DecideAddPlayer(id PlayerID, effectiveAt time.Time) ([]DomainEvent, error) {
-	err := r.CanAddPlayer(id)
+	err := r.validateAddPlayer(id)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +72,7 @@ func (r RosterView) DecideAddPlayer(id PlayerID, effectiveAt time.Time) ([]Domai
 	return res, nil
 }
 
-func (r RosterView) CanAddPlayer(id PlayerID) error {
+func (r RosterView) validateAddPlayer(id PlayerID) error {
 	if len(r.Entries) >= MaxRosterSize {
 		return ErrRosterFull
 	}
@@ -85,7 +86,7 @@ func (r RosterView) CanAddPlayer(id PlayerID) error {
 	return nil
 }
 
-func (r RosterView) CanActivatePlayer(id PlayerID, role PlayerRole) error {
+func (r RosterView) ValidateActivatePlayer(id PlayerID, role PlayerRole) error {
 	var onRoster bool
 
 	for _, e := range r.Entries {
@@ -115,6 +116,7 @@ func (r RosterView) CanActivatePlayer(id PlayerID, role PlayerRole) error {
 	return nil
 }
 
+// TODO: extract to events.go file
 type AddedPlayerToRoster struct {
 	PlayerID    PlayerID
 	EffectiveAt time.Time
