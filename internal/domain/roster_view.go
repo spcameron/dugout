@@ -117,6 +117,7 @@ func (r RosterView) ValidateActivatePlayer(id PlayerID, role PlayerRole) error {
 }
 
 // TODO: extract to events.go file
+
 type AddedPlayerToRoster struct {
 	PlayerID    PlayerID
 	EffectiveAt time.Time
