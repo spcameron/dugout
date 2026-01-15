@@ -20,12 +20,12 @@ var (
 	ErrPlayerNotOnRoster     = errors.New("player is not on the roster")
 )
 
-type Roster struct {
+type RosterView struct {
 	TeamID  TeamID
 	Entries []RosterEntry
 }
 
-func (r Roster) Counts() RosterCounts {
+func (r RosterView) Counts() RosterCounts {
 	rc := RosterCounts{}
 
 	for _, e := range r.Entries {
@@ -46,14 +46,7 @@ func (r Roster) Counts() RosterCounts {
 	return rc
 }
 
-type RosterCounts struct {
-	Total          int
-	ActiveHitters  int
-	ActivePitchers int
-	Inactive       int
-}
-
-func CanAddPlayer(r Roster, id PlayerID) error {
+func (r RosterView) CanAddPlayer(id PlayerID) error {
 	if len(r.Entries) >= MaxRosterSize {
 		return ErrRosterFull
 	}
@@ -67,7 +60,7 @@ func CanAddPlayer(r Roster, id PlayerID) error {
 	return nil
 }
 
-func CanActivatePlayer(r Roster, id PlayerID, role PlayerRole) error {
+func (r RosterView) CanActivatePlayer(id PlayerID, role PlayerRole) error {
 	var onRoster bool
 
 	for _, e := range r.Entries {
@@ -95,4 +88,11 @@ func CanActivatePlayer(r Roster, id PlayerID, role PlayerRole) error {
 	}
 
 	return nil
+}
+
+type RosterCounts struct {
+	Total          int
+	ActiveHitters  int
+	ActivePitchers int
+	Inactive       int
 }

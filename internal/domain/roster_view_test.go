@@ -43,10 +43,10 @@ func TestCanAddPlayer(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			r := roster(999, tc.rosterSize)
+			r := rosterView(999, tc.rosterSize)
 			candidateID := domain.PlayerID(tc.playerID)
 
-			err := domain.CanAddPlayer(r, candidateID)
+			err := r.CanAddPlayer(candidateID)
 			if tc.wantErr == nil {
 				require.NoError(t, err)
 			} else {
@@ -110,8 +110,8 @@ func TestCanActivatePlayer(t *testing.T) {
 
 	for _, tc := range capacityCases {
 		t.Run(tc.name, func(t *testing.T) {
-			r := activateRoster(
-				roster(999, domain.MaxRosterSize),
+			r := activatedRosterView(
+				rosterView(999, domain.MaxRosterSize),
 				tc.activeHitters,
 				tc.activePitchers,
 			)
@@ -119,7 +119,7 @@ func TestCanActivatePlayer(t *testing.T) {
 			// fixed, known-inactive player
 			candidateID := domain.PlayerID(domain.MaxRosterSize)
 
-			err := domain.CanActivatePlayer(r, candidateID, tc.role)
+			err := r.CanActivatePlayer(candidateID, tc.role)
 
 			if tc.wantErr == nil {
 				require.NoError(t, err)
@@ -173,15 +173,15 @@ func TestCanActivatePlayer(t *testing.T) {
 
 	for _, tc := range membershipCases {
 		t.Run(tc.name, func(t *testing.T) {
-			r := activateRoster(
-				roster(999, domain.MaxRosterSize),
+			r := activatedRosterView(
+				rosterView(999, domain.MaxRosterSize),
 				tc.activeHitters,
 				tc.activePitchers,
 			)
 
 			candidateID := domain.PlayerID(tc.playerID)
 
-			err := domain.CanActivatePlayer(r, candidateID, tc.role)
+			err := r.CanActivatePlayer(candidateID, tc.role)
 
 			if tc.wantErr == nil {
 				require.NoError(t, err)
@@ -227,8 +227,8 @@ func TestRosterCounts(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			r := activateRoster(
-				roster(999, tc.rosterSize),
+			r := activatedRosterView(
+				rosterView(999, tc.rosterSize),
 				tc.activeHitters,
 				tc.activePitchers,
 			)
@@ -244,7 +244,7 @@ func TestRosterCounts(t *testing.T) {
 	}
 
 	t.Run("panics on unrecognized roster status", func(t *testing.T) {
-		r := domain.Roster{
+		r := domain.RosterView{
 			TeamID: 999,
 			Entries: []domain.RosterEntry{
 				{
@@ -271,18 +271,19 @@ func TestRosterCounts(t *testing.T) {
 	})
 }
 
-// roster returns a Roster containing a given number of players.
+// rosterView returns a Roster containing a given number of players.
 //
-// The roster will not exceed the MaxRosterSize, and players will be assigned consecutive PlayerIDs beginning from 1.
+// The RosterView.Entries will not exceed the MaxRosterSize, and players will be
+// assigned consecutive PlayerIDs beginning from 1.
 // Panics if the number of players is less than zero.
-func roster(teamID domain.TeamID, players int) domain.Roster {
+func rosterView(teamID domain.TeamID, players int) domain.RosterView {
 	if players < 0 {
 		panic("players cannot be negative")
 	}
 
 	players = min(players, domain.MaxRosterSize)
 
-	r := domain.Roster{
+	r := domain.RosterView{
 		TeamID:  teamID,
 		Entries: make([]domain.RosterEntry, players),
 	}
@@ -297,12 +298,12 @@ func roster(teamID domain.TeamID, players int) domain.Roster {
 	return r
 }
 
-// activateRoster returns a Roster with a given number of active hitters and active pitchers.
+// activatedRosterView returns a Roster with a given number of active hitters and active pitchers.
 //
 // The number of hitters and pitchers will not exceed the MaxActiveHitters and MaxActivePitchers.
-// Creates a shallow copy of the Roster.Entries slice, so shared ownership is safe.
+// Creates a shallow copy of the RosterView.Entries slice, so shared ownership is safe.
 // Panics if the given number of hitters and pitchers exceeds the length of r.Entries.
-func activateRoster(r domain.Roster, hitters, pitchers int) domain.Roster {
+func activatedRosterView(r domain.RosterView, hitters, pitchers int) domain.RosterView {
 	if len(r.Entries) < hitters+pitchers {
 		panic("roster entries cannot be fewer than total hitters and pitchers")
 	}
