@@ -2,10 +2,35 @@ package domain_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/spcameron/dugout/internal/domain"
 	"github.com/spcameron/dugout/internal/testutil/assert"
 	"github.com/spcameron/dugout/internal/testutil/require"
+)
+
+var nyc = func() *time.Location {
+	loc, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		panic(err)
+	}
+	return loc
+}()
+
+var todayLock = time.Date(
+	1986,
+	time.October,
+	26,
+	0, 0, 0, 0,
+	nyc,
+)
+
+var tomorrowLock = time.Date(
+	1986,
+	time.October,
+	27,
+	0, 0, 0, 0,
+	nyc,
 )
 
 func TestCanAddPlayer(t *testing.T) {
@@ -268,6 +293,29 @@ func TestRosterCounts(t *testing.T) {
 		}()
 
 		_ = r.Counts()
+	})
+}
+
+func TestDecideAddPlayer(t *testing.T) {
+	t.Run("allow adding player to empty roster", func(t *testing.T) {
+		r := domain.RosterView{
+			TeamID:           999,
+			Entries:          []domain.RosterEntry{},
+			EffectiveThrough: todayLock,
+		}
+		candidateID := domain.PlayerID(1)
+		effectiveAt := tomorrowLock
+
+		events, err := r.DecideAddPlayer(candidateID, effectiveAt)
+
+		require.NoError(t, err)
+		require.Equal(t, len(events), 1)
+
+		ev, ok := events[0].(domain.AddedPlayerToRoster)
+		require.True(t, ok)
+
+		require.Equal(t, ev.EffectiveAt, effectiveAt)
+		require.Equal(t, ev.PlayerID, candidateID)
 	})
 }
 

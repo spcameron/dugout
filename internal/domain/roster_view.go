@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"fmt"
+	"time"
 )
 
 const (
@@ -20,9 +21,17 @@ var (
 	ErrPlayerNotOnRoster     = errors.New("player is not on the roster")
 )
 
+type RosterCounts struct {
+	Total          int
+	ActiveHitters  int
+	ActivePitchers int
+	Inactive       int
+}
+
 type RosterView struct {
-	TeamID  TeamID
-	Entries []RosterEntry
+	TeamID           TeamID
+	Entries          []RosterEntry
+	EffectiveThrough time.Time
 }
 
 func (r RosterView) Counts() RosterCounts {
@@ -44,6 +53,22 @@ func (r RosterView) Counts() RosterCounts {
 	}
 
 	return rc
+}
+
+func (r RosterView) DecideAddPlayer(id PlayerID, effectiveAt time.Time) ([]DomainEvent, error) {
+	err := r.CanAddPlayer(id)
+	if err != nil {
+		return nil, err
+	}
+
+	res := []DomainEvent{
+		AddedPlayerToRoster{
+			PlayerID:    id,
+			EffectiveAt: effectiveAt,
+		},
+	}
+
+	return res, nil
 }
 
 func (r RosterView) CanAddPlayer(id PlayerID) error {
@@ -90,9 +115,9 @@ func (r RosterView) CanActivatePlayer(id PlayerID, role PlayerRole) error {
 	return nil
 }
 
-type RosterCounts struct {
-	Total          int
-	ActiveHitters  int
-	ActivePitchers int
-	Inactive       int
+type AddedPlayerToRoster struct {
+	PlayerID    PlayerID
+	EffectiveAt time.Time
 }
+
+func (e AddedPlayerToRoster) isDomainEvent() {}
