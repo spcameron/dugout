@@ -9,46 +9,51 @@ import (
 )
 
 func TestCanAddPlayer(t *testing.T) {
+	testCases := []struct {
+		name       string
+		rosterSize int
+		playerID   int
+		wantErr    error
+	}{
+		{
+			name:       "allow adding player to empty roster",
+			rosterSize: 0,
+			playerID:   1,
+			wantErr:    nil,
+		},
+		{
+			name:       "allow adding player to roster below cap",
+			rosterSize: domain.MaxRosterSize - 1,
+			playerID:   domain.MaxRosterSize,
+			wantErr:    nil,
+		},
+		{
+			name:       "reject adding player to roster at cap",
+			rosterSize: domain.MaxRosterSize,
+			playerID:   domain.MaxRosterSize + 1,
+			wantErr:    domain.ErrRosterFull,
+		},
+		{
+			name:       "reject adding player already on roster",
+			rosterSize: 1,
+			playerID:   1,
+			wantErr:    domain.ErrPlayerAlreadyOnRoster,
+		},
+	}
 
-	t.Run("add player to empty roster", func(t *testing.T) {
-		r := roster(100, 0)
-		p := domain.Player{
-			ID: 1,
-		}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := roster(999, tc.rosterSize)
+			candidateID := domain.PlayerID(tc.playerID)
 
-		err := domain.CanAddPlayer(r, p.ID)
-		require.NoError(t, err)
-	})
-
-	t.Run("add a second player to roster", func(t *testing.T) {
-		r := roster(100, 1)
-		p := domain.Player{
-			ID: 2,
-		}
-
-		err := domain.CanAddPlayer(r, p.ID)
-		require.NoError(t, err)
-	})
-
-	t.Run("add player when already on roster", func(t *testing.T) {
-		r := roster(100, 1)
-		p := domain.Player{
-			ID: 1,
-		}
-
-		err := domain.CanAddPlayer(r, p.ID)
-		require.ErrorIs(t, err, domain.ErrPlayerAlreadyOnRoster)
-	})
-
-	t.Run("add a player to 26-man roster", func(t *testing.T) {
-		r := roster(100, domain.MaxRosterSize)
-		p := domain.Player{
-			ID: domain.MaxRosterSize + 1,
-		}
-
-		err := domain.CanAddPlayer(r, p.ID)
-		require.ErrorIs(t, err, domain.ErrRosterFull)
-	})
+			err := domain.CanAddPlayer(r, candidateID)
+			if tc.wantErr == nil {
+				require.NoError(t, err)
+			} else {
+				require.ErrorIs(t, err, tc.wantErr)
+			}
+		})
+	}
 }
 
 func TestCanActivatePlayer(t *testing.T) {
@@ -129,7 +134,7 @@ func TestCanActivatePlayer(t *testing.T) {
 		activeHitters  int
 		activePitchers int
 		role           domain.PlayerRole
-		id             int
+		playerID       int
 		wantErr        error
 	}{
 		{
@@ -137,7 +142,7 @@ func TestCanActivatePlayer(t *testing.T) {
 			activeHitters:  0,
 			activePitchers: 0,
 			role:           domain.RoleHitter,
-			id:             domain.MaxRosterSize + 1,
+			playerID:       domain.MaxRosterSize + 1,
 			wantErr:        domain.ErrPlayerNotOnRoster,
 		},
 		{
@@ -145,7 +150,7 @@ func TestCanActivatePlayer(t *testing.T) {
 			activeHitters:  0,
 			activePitchers: 0,
 			role:           domain.RolePitcher,
-			id:             domain.MaxRosterSize + 1,
+			playerID:       domain.MaxRosterSize + 1,
 			wantErr:        domain.ErrPlayerNotOnRoster,
 		},
 		{
@@ -153,7 +158,7 @@ func TestCanActivatePlayer(t *testing.T) {
 			activeHitters:  domain.MaxActiveHitters - 1,
 			activePitchers: 0,
 			role:           domain.RoleHitter,
-			id:             1,
+			playerID:       1,
 			wantErr:        domain.ErrPlayerAlreadyActive,
 		},
 		{
@@ -161,7 +166,7 @@ func TestCanActivatePlayer(t *testing.T) {
 			activeHitters:  0,
 			activePitchers: domain.MaxActivePitchers - 1,
 			role:           domain.RolePitcher,
-			id:             1,
+			playerID:       1,
 			wantErr:        domain.ErrPlayerAlreadyActive,
 		},
 	}
@@ -174,7 +179,7 @@ func TestCanActivatePlayer(t *testing.T) {
 				tc.activePitchers,
 			)
 
-			candidateID := domain.PlayerID(tc.id)
+			candidateID := domain.PlayerID(tc.playerID)
 
 			err := domain.CanActivatePlayer(r, candidateID, tc.role)
 
@@ -188,7 +193,7 @@ func TestCanActivatePlayer(t *testing.T) {
 }
 
 func TestRosterCounts(t *testing.T) {
-	tests := []struct {
+	testCases := []struct {
 		name           string
 		rosterSize     int
 		activeHitters  int
@@ -220,7 +225,7 @@ func TestRosterCounts(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			r := activateRoster(
 				roster(999, tc.rosterSize),
