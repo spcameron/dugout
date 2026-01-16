@@ -84,17 +84,17 @@ func TestDecideAddPlayer(t *testing.T) {
 			events, err := r.DecideAddPlayer(candidateID, tc.effectiveAt)
 
 			if tc.wantErr == nil {
-				require.NoError(t, err)
+				assert.NoError(t, err)
 				require.Equal(t, len(events), 1)
 
 				ev, ok := events[0].(domain.AddedPlayerToRoster)
 				require.True(t, ok)
 
-				require.Equal(t, ev.EffectiveAt, tc.effectiveAt)
-				require.Equal(t, ev.PlayerID, candidateID)
+				assert.Equal(t, ev.EffectiveAt, tc.effectiveAt)
+				assert.Equal(t, ev.PlayerID, candidateID)
 			} else {
-				require.Nil(t, events)
-				require.ErrorIs(t, err, tc.wantErr)
+				assert.Nil(t, events)
+				assert.ErrorIs(t, err, tc.wantErr)
 			}
 		})
 	}
@@ -180,18 +180,18 @@ func TestDecideActivatePlayer(t *testing.T) {
 			events, err := r.DecideActivatePlayer(candidateID, tc.role, tc.effectiveAt)
 
 			if tc.wantErr == nil {
-				require.NoError(t, err)
+				assert.NoError(t, err)
 				require.Equal(t, len(events), 1)
 
 				ev, ok := events[0].(domain.ActivatedPlayerOnRoster)
 				require.True(t, ok)
 
-				require.Equal(t, ev.EffectiveAt, tc.effectiveAt)
-				require.Equal(t, ev.PlayerID, candidateID)
-				require.Equal(t, ev.PlayerRole, tc.role)
+				assert.Equal(t, ev.EffectiveAt, tc.effectiveAt)
+				assert.Equal(t, ev.PlayerID, candidateID)
+				assert.Equal(t, ev.PlayerRole, tc.role)
 			} else {
-				require.Nil(t, events)
-				require.ErrorIs(t, err, tc.wantErr)
+				assert.Nil(t, events)
+				assert.ErrorIs(t, err, tc.wantErr)
 			}
 		})
 	}
@@ -271,10 +271,10 @@ func TestDecideActivatePlayer(t *testing.T) {
 			events, err := r.DecideActivatePlayer(candidateID, tc.role, tc.effectiveAt)
 
 			if tc.wantErr == nil {
-				require.NoError(t, err)
+				assert.NoError(t, err)
 			} else {
-				require.Nil(t, events)
-				require.ErrorIs(t, err, tc.wantErr)
+				assert.Nil(t, events)
+				assert.ErrorIs(t, err, tc.wantErr)
 			}
 		})
 	}
@@ -352,7 +352,7 @@ func TestRosterCounts(t *testing.T) {
 			}
 
 			msg := err.Error()
-			require.Contains(t, msg, "unrecognized roster status: ")
+			assert.Contains(t, msg, "unrecognized roster status: ")
 		}()
 
 		_ = r.Counts()
