@@ -14,9 +14,9 @@ type AddedPlayerToRoster struct {
 func (e AddedPlayerToRoster) isDomainEvent() {}
 
 type ActivatedPlayerOnRoster struct {
-	PlayerID     PlayerID
-	RosterStatus RosterStatus
-	EffectiveAt  time.Time
+	PlayerID    PlayerID
+	PlayerRole  PlayerRole
+	EffectiveAt time.Time
 }
 
 func (e ActivatedPlayerOnRoster) isDomainEvent() {}

@@ -107,7 +107,6 @@ func TestDecideActivatePlayer(t *testing.T) {
 		activePitchers   int
 		effectiveThrough time.Time
 		role             domain.PlayerRole
-		status           domain.RosterStatus
 		effectiveAt      time.Time
 		wantErr          error
 	}{
@@ -117,7 +116,6 @@ func TestDecideActivatePlayer(t *testing.T) {
 			activePitchers:   0,
 			effectiveThrough: tomorrowLock,
 			role:             domain.RoleHitter,
-			status:           domain.StatusActiveHitter,
 			effectiveAt:      tomorrowLock,
 			wantErr:          nil,
 		},
@@ -127,7 +125,6 @@ func TestDecideActivatePlayer(t *testing.T) {
 			activePitchers:   domain.MaxActivePitchers - 1,
 			effectiveThrough: tomorrowLock,
 			role:             domain.RolePitcher,
-			status:           domain.StatusActivePitcher,
 			effectiveAt:      tomorrowLock,
 			wantErr:          nil,
 		},
@@ -137,7 +134,6 @@ func TestDecideActivatePlayer(t *testing.T) {
 			activePitchers:   0,
 			effectiveThrough: tomorrowLock,
 			role:             domain.RoleHitter,
-			status:           domain.StatusActiveHitter,
 			effectiveAt:      tomorrowLock,
 			wantErr:          domain.ErrActiveHittersFull,
 		},
@@ -147,7 +143,6 @@ func TestDecideActivatePlayer(t *testing.T) {
 			activePitchers:   domain.MaxActivePitchers,
 			effectiveThrough: tomorrowLock,
 			role:             domain.RolePitcher,
-			status:           domain.StatusActivePitcher,
 			effectiveAt:      tomorrowLock,
 			wantErr:          domain.ErrActivePitchersFull,
 		},
@@ -157,7 +152,6 @@ func TestDecideActivatePlayer(t *testing.T) {
 			activePitchers:   domain.MaxActivePitchers,
 			effectiveThrough: tomorrowLock,
 			role:             domain.RoleHitter,
-			status:           domain.StatusActiveHitter,
 			effectiveAt:      tomorrowLock,
 			wantErr:          nil,
 		},
@@ -167,7 +161,6 @@ func TestDecideActivatePlayer(t *testing.T) {
 			activePitchers:   0,
 			effectiveThrough: tomorrowLock,
 			role:             domain.RolePitcher,
-			status:           domain.StatusActivePitcher,
 			effectiveAt:      tomorrowLock,
 			wantErr:          nil,
 		},
@@ -195,7 +188,7 @@ func TestDecideActivatePlayer(t *testing.T) {
 
 				require.Equal(t, ev.EffectiveAt, tc.effectiveAt)
 				require.Equal(t, ev.PlayerID, candidateID)
-				require.Equal(t, ev.RosterStatus, tc.status)
+				require.Equal(t, ev.PlayerRole, tc.role)
 			} else {
 				require.Nil(t, events)
 				require.ErrorIs(t, err, tc.wantErr)
@@ -252,6 +245,16 @@ func TestDecideActivatePlayer(t *testing.T) {
 			playerID:         1,
 			effectiveAt:      tomorrowLock,
 			wantErr:          domain.ErrPlayerAlreadyActive,
+		},
+		{
+			name:             "reject activating player with unknown role",
+			activeHitters:    0,
+			activePitchers:   0,
+			effectiveThrough: tomorrowLock,
+			role:             domain.PlayerRole(999),
+			playerID:         1,
+			effectiveAt:      tomorrowLock,
+			wantErr:          domain.ErrUnrecognizedPlayerRole,
 		},
 	}
 
