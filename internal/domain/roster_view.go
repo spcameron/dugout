@@ -72,6 +72,31 @@ func (r RosterView) DecideAddPlayer(id PlayerID, effectiveAt time.Time) ([]Domai
 	return res, nil
 }
 
+func (r RosterView) DecideActivatePlayer(id PlayerID, role PlayerRole, effectiveAt time.Time) ([]DomainEvent, error) {
+	err := r.validateActivatePlayer(id, role)
+	if err != nil {
+		return nil, err
+	}
+
+	var rs RosterStatus
+	switch role {
+	case RoleHitter:
+		rs = StatusActiveHitter
+	case RolePitcher:
+		rs = StatusActivePitcher
+	}
+
+	res := []DomainEvent{
+		ActivatedPlayerOnRoster{
+			PlayerID:     id,
+			RosterStatus: rs,
+			EffectiveAt:  effectiveAt,
+		},
+	}
+
+	return res, nil
+}
+
 func (r RosterView) validateAddPlayer(id PlayerID) error {
 	if len(r.Entries) >= MaxRosterSize {
 		return ErrRosterFull
@@ -86,7 +111,7 @@ func (r RosterView) validateAddPlayer(id PlayerID) error {
 	return nil
 }
 
-func (r RosterView) ValidateActivatePlayer(id PlayerID, role PlayerRole) error {
+func (r RosterView) validateActivatePlayer(id PlayerID, role PlayerRole) error {
 	var onRoster bool
 
 	for _, e := range r.Entries {
@@ -115,12 +140,3 @@ func (r RosterView) ValidateActivatePlayer(id PlayerID, role PlayerRole) error {
 
 	return nil
 }
-
-// TODO: extract to events.go file
-
-type AddedPlayerToRoster struct {
-	PlayerID    PlayerID
-	EffectiveAt time.Time
-}
-
-func (e AddedPlayerToRoster) isDomainEvent() {}
