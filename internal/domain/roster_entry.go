@@ -1,5 +1,7 @@
 package domain
 
+import "fmt"
+
 type RosterStatus int
 
 const (
@@ -7,6 +9,19 @@ const (
 	StatusActiveHitter
 	StatusActivePitcher
 )
+
+func (s RosterStatus) String() string {
+	switch s {
+	case StatusInactive:
+		return "StatusInactive"
+	case StatusActiveHitter:
+		return "StatusActiveHitter"
+	case StatusActivePitcher:
+		return "StatusActivePitcher"
+	default:
+		return fmt.Sprintf("RosterStatus(%d)", int(s))
+	}
+}
 
 type RosterEntry struct {
 	PlayerID     PlayerID

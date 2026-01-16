@@ -13,12 +13,13 @@ const (
 )
 
 var (
-	ErrActiveHittersFull     = errors.New("roster already has the maximum active hitters")
-	ErrActivePitchersFull    = errors.New("roster already has the maximum active pitchers")
-	ErrPlayerAlreadyActive   = errors.New("player already activated")
-	ErrPlayerAlreadyOnRoster = errors.New("player already on roster")
-	ErrRosterFull            = errors.New("roster is already full")
-	ErrPlayerNotOnRoster     = errors.New("player is not on the roster")
+	ErrActiveHittersFull      = errors.New("roster already has the maximum active hitters")
+	ErrActivePitchersFull     = errors.New("roster already has the maximum active pitchers")
+	ErrPlayerAlreadyActive    = errors.New("player already activated")
+	ErrPlayerAlreadyOnRoster  = errors.New("player already on roster")
+	ErrRosterFull             = errors.New("roster is already full")
+	ErrPlayerNotOnRoster      = errors.New("player is not on the roster")
+	ErrUnrecognizedPlayerRole = errors.New("unrecognized player role")
 )
 
 type RosterCounts struct {
@@ -72,6 +73,23 @@ func (r RosterView) DecideAddPlayer(id PlayerID, effectiveAt time.Time) ([]Domai
 	return res, nil
 }
 
+func (r RosterView) DecideActivatePlayer(id PlayerID, role PlayerRole, effectiveAt time.Time) ([]DomainEvent, error) {
+	err := r.validateActivatePlayer(id, role)
+	if err != nil {
+		return nil, err
+	}
+
+	res := []DomainEvent{
+		ActivatedPlayerOnRoster{
+			PlayerID:    id,
+			PlayerRole:  role,
+			EffectiveAt: effectiveAt,
+		},
+	}
+
+	return res, nil
+}
+
 func (r RosterView) validateAddPlayer(id PlayerID) error {
 	if len(r.Entries) >= MaxRosterSize {
 		return ErrRosterFull
@@ -86,12 +104,11 @@ func (r RosterView) validateAddPlayer(id PlayerID) error {
 	return nil
 }
 
-func (r RosterView) ValidateActivatePlayer(id PlayerID, role PlayerRole) error {
+func (r RosterView) validateActivatePlayer(id PlayerID, role PlayerRole) error {
 	var onRoster bool
-
 	for _, e := range r.Entries {
 		if e.PlayerID == id {
-			if e.RosterStatus != StatusInactive {
+			if e.RosterStatus == StatusActiveHitter || e.RosterStatus == StatusActivePitcher {
 				return ErrPlayerAlreadyActive
 			}
 
@@ -106,21 +123,18 @@ func (r RosterView) ValidateActivatePlayer(id PlayerID, role PlayerRole) error {
 
 	rc := r.Counts()
 
-	if role == RoleHitter && rc.ActiveHitters >= MaxActiveHitters {
-		return ErrActiveHittersFull
-	}
-	if role == RolePitcher && rc.ActivePitchers >= MaxActivePitchers {
-		return ErrActivePitchersFull
+	switch role {
+	case RoleHitter:
+		if rc.ActiveHitters >= MaxActiveHitters {
+			return ErrActiveHittersFull
+		}
+	case RolePitcher:
+		if rc.ActivePitchers >= MaxActivePitchers {
+			return ErrActivePitchersFull
+		}
+	default:
+		return ErrUnrecognizedPlayerRole
 	}
 
 	return nil
 }
-
-// TODO: extract to events.go file
-
-type AddedPlayerToRoster struct {
-	PlayerID    PlayerID
-	EffectiveAt time.Time
-}
-
-func (e AddedPlayerToRoster) isDomainEvent() {}
