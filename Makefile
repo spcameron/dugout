@@ -340,7 +340,7 @@ branch/new: confirm require-clean
 	echo "Creating branch $$branch from main..." ; \
 	git switch -c "$$branch"
 
-## branch/cleanup: sync main (from GitHub) and delete the current branch locally (squash-merge safe)
+## branch/cleanup: delete the current local branch after syncing main (use only for branches without PRs)
 .PHONY: branch/cleanup
 branch/cleanup: confirm require-clean
 	@set -e; \

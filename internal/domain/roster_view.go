@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"fmt"
+	"time"
 )
 
 const (
@@ -20,12 +21,20 @@ var (
 	ErrPlayerNotOnRoster     = errors.New("player is not on the roster")
 )
 
-type Roster struct {
-	TeamID  TeamID
-	Entries []RosterEntry
+type RosterCounts struct {
+	Total          int
+	ActiveHitters  int
+	ActivePitchers int
+	Inactive       int
 }
 
-func (r Roster) Counts() RosterCounts {
+type RosterView struct {
+	TeamID           TeamID
+	Entries          []RosterEntry
+	EffectiveThrough time.Time
+}
+
+func (r RosterView) Counts() RosterCounts {
 	rc := RosterCounts{}
 
 	for _, e := range r.Entries {
@@ -46,14 +55,24 @@ func (r Roster) Counts() RosterCounts {
 	return rc
 }
 
-type RosterCounts struct {
-	Total          int
-	ActiveHitters  int
-	ActivePitchers int
-	Inactive       int
+// DecideAddPlayer returns the AddedPlayerToRoster events that should be recorded if allowed.
+func (r RosterView) DecideAddPlayer(id PlayerID, effectiveAt time.Time) ([]DomainEvent, error) {
+	err := r.validateAddPlayer(id)
+	if err != nil {
+		return nil, err
+	}
+
+	res := []DomainEvent{
+		AddedPlayerToRoster{
+			PlayerID:    id,
+			EffectiveAt: effectiveAt,
+		},
+	}
+
+	return res, nil
 }
 
-func CanAddPlayer(r Roster, id PlayerID) error {
+func (r RosterView) validateAddPlayer(id PlayerID) error {
 	if len(r.Entries) >= MaxRosterSize {
 		return ErrRosterFull
 	}
@@ -67,7 +86,7 @@ func CanAddPlayer(r Roster, id PlayerID) error {
 	return nil
 }
 
-func CanActivatePlayer(r Roster, id PlayerID, role PlayerRole) error {
+func (r RosterView) ValidateActivatePlayer(id PlayerID, role PlayerRole) error {
 	var onRoster bool
 
 	for _, e := range r.Entries {
@@ -96,3 +115,12 @@ func CanActivatePlayer(r Roster, id PlayerID, role PlayerRole) error {
 
 	return nil
 }
+
+// TODO: extract to events.go file
+
+type AddedPlayerToRoster struct {
+	PlayerID    PlayerID
+	EffectiveAt time.Time
+}
+
+func (e AddedPlayerToRoster) isDomainEvent() {}

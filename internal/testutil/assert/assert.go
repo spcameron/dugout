@@ -43,7 +43,7 @@ func False(t *testing.T, got bool) {
 func Nil(t *testing.T, got any) {
 	t.Helper()
 
-	if isNil(got) {
+	if !isNil(got) {
 		t.Errorf("got: %v; want: nil", got)
 	}
 }
