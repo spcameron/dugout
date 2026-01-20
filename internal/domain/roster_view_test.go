@@ -54,7 +54,7 @@ func TestDecideAddPlayer(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			rv := rosterView(999, tc.rosterSize, tc.effectiveThrough)
+			rv := rosterView(teamA, tc.rosterSize, tc.effectiveThrough)
 			candidateID := domain.PlayerID(tc.playerID)
 
 			events, err := rv.DecideAddPlayer(candidateID, tc.effectiveAt)
@@ -145,7 +145,7 @@ func TestDecideActivatePlayer(t *testing.T) {
 	for _, tc := range capacityCases {
 		t.Run(tc.name, func(t *testing.T) {
 			rv := activatedRosterView(
-				rosterView(999, domain.MaxRosterSize, tc.effectiveThrough),
+				rosterView(teamA, domain.MaxRosterSize, tc.effectiveThrough),
 				tc.activeHitters,
 				tc.activePitchers,
 			)
@@ -237,7 +237,7 @@ func TestDecideActivatePlayer(t *testing.T) {
 	for _, tc := range membershipCases {
 		t.Run(tc.name, func(t *testing.T) {
 			rv := activatedRosterView(
-				rosterView(999, domain.MaxRosterSize, tc.effectiveThrough),
+				rosterView(teamA, domain.MaxRosterSize, tc.effectiveThrough),
 				tc.activeHitters,
 				tc.activePitchers,
 			)
@@ -292,7 +292,7 @@ func TestRosterCounts(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			rv := activatedRosterView(
-				rosterView(999, tc.rosterSize, todayLock),
+				rosterView(teamA, tc.rosterSize, todayLock),
 				tc.activeHitters,
 				tc.activePitchers,
 			)
@@ -309,7 +309,7 @@ func TestRosterCounts(t *testing.T) {
 
 	t.Run("panics on unrecognized roster status", func(t *testing.T) {
 		r := domain.RosterView{
-			TeamID: 999,
+			TeamID: teamA,
 			Entries: []domain.RosterEntry{
 				{
 					PlayerID:     1,
