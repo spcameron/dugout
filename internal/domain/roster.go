@@ -16,11 +16,7 @@ func (r *Roster) Append(events ...RosterEvent) error {
 		}
 	}
 
-	for _, ev := range events {
-		r.EventHistory = append(r.EventHistory, ev)
-	}
-
-	// later: r.EventHistory = append(r.EventHistory, events...)
+	r.EventHistory = append(r.EventHistory, events...)
 
 	return nil
 }
