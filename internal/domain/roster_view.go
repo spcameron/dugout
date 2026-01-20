@@ -35,10 +35,10 @@ type RosterView struct {
 	EffectiveThrough time.Time
 }
 
-func (r RosterView) Counts() RosterCounts {
+func (rv RosterView) Counts() RosterCounts {
 	rc := RosterCounts{}
 
-	for _, e := range r.Entries {
+	for _, e := range rv.Entries {
 		switch e.RosterStatus {
 		case StatusActiveHitter:
 			rc.ActiveHitters++
@@ -57,13 +57,13 @@ func (r RosterView) Counts() RosterCounts {
 }
 
 // DecideAddPlayer returns the AddedPlayerToRoster events that should be recorded if allowed.
-func (r RosterView) DecideAddPlayer(id PlayerID, effectiveAt time.Time) ([]DomainEvent, error) {
-	err := r.validateAddPlayer(id)
+func (rv RosterView) DecideAddPlayer(id PlayerID, effectiveAt time.Time) ([]RosterEvent, error) {
+	err := rv.validateAddPlayer(id)
 	if err != nil {
 		return nil, err
 	}
 
-	res := []DomainEvent{
+	res := []RosterEvent{
 		AddedPlayerToRoster{
 			PlayerID:    id,
 			EffectiveAt: effectiveAt,
@@ -73,13 +73,13 @@ func (r RosterView) DecideAddPlayer(id PlayerID, effectiveAt time.Time) ([]Domai
 	return res, nil
 }
 
-func (r RosterView) DecideActivatePlayer(id PlayerID, role PlayerRole, effectiveAt time.Time) ([]DomainEvent, error) {
-	err := r.validateActivatePlayer(id, role)
+func (rv RosterView) DecideActivatePlayer(id PlayerID, role PlayerRole, effectiveAt time.Time) ([]RosterEvent, error) {
+	err := rv.validateActivatePlayer(id, role)
 	if err != nil {
 		return nil, err
 	}
 
-	res := []DomainEvent{
+	res := []RosterEvent{
 		ActivatedPlayerOnRoster{
 			PlayerID:    id,
 			PlayerRole:  role,
@@ -90,12 +90,12 @@ func (r RosterView) DecideActivatePlayer(id PlayerID, role PlayerRole, effective
 	return res, nil
 }
 
-func (r RosterView) validateAddPlayer(id PlayerID) error {
-	if len(r.Entries) >= MaxRosterSize {
+func (rv RosterView) validateAddPlayer(id PlayerID) error {
+	if len(rv.Entries) >= MaxRosterSize {
 		return ErrRosterFull
 	}
 
-	for _, e := range r.Entries {
+	for _, e := range rv.Entries {
 		if e.PlayerID == id {
 			return ErrPlayerAlreadyOnRoster
 		}
@@ -104,9 +104,9 @@ func (r RosterView) validateAddPlayer(id PlayerID) error {
 	return nil
 }
 
-func (r RosterView) validateActivatePlayer(id PlayerID, role PlayerRole) error {
+func (rv RosterView) validateActivatePlayer(id PlayerID, role PlayerRole) error {
 	var onRoster bool
-	for _, e := range r.Entries {
+	for _, e := range rv.Entries {
 		if e.PlayerID == id {
 			if e.RosterStatus == StatusActiveHitter || e.RosterStatus == StatusActivePitcher {
 				return ErrPlayerAlreadyActive
@@ -121,7 +121,7 @@ func (r RosterView) validateActivatePlayer(id PlayerID, role PlayerRole) error {
 		return ErrPlayerNotOnRoster
 	}
 
-	rc := r.Counts()
+	rc := rv.Counts()
 
 	switch role {
 	case RoleHitter:
