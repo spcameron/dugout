@@ -335,6 +335,62 @@ func TestRosterCounts(t *testing.T) {
 	})
 }
 
+func TestApply(t *testing.T) {
+	testAddPlayerCases := []struct {
+		name  string
+		view  domain.RosterView
+		event domain.AddedPlayerToRoster
+	}{
+		{
+			name: "apply AddedPlayerToRoster to empty view creates one inactive entry",
+			view: rosterView(teamA, 0, todayLock),
+			event: domain.AddedPlayerToRoster{
+				TeamID:      teamA,
+				PlayerID:    1,
+				EffectiveAt: todayLock,
+			},
+		},
+		{
+			name: "apply AddedPlayerToRoster to view with existing entries appends new inactive entry",
+			view: rosterView(teamA, domain.MaxRosterSize-1, todayLock),
+			event: domain.AddedPlayerToRoster{
+				TeamID:      teamA,
+				PlayerID:    domain.MaxRosterSize,
+				EffectiveAt: todayLock,
+			},
+		},
+	}
+
+	for _, tc := range testAddPlayerCases {
+		t.Run(tc.name, func(t *testing.T) {
+			rv := tc.view
+
+			startingTeamID := rv.TeamID
+			startingLength := len(rv.Entries)
+			startingLock := rv.EffectiveThrough
+
+			var startingLastPlayerID domain.PlayerID
+			if startingLength > 0 {
+				startingLastPlayerID = rv.Entries[startingLength-1].PlayerID
+			}
+
+			rv.Apply(tc.event)
+
+			require.Equal(t, len(rv.Entries), startingLength+1)
+
+			entry := rv.Entries[len(rv.Entries)-1]
+			assert.Equal(t, entry.PlayerID, tc.event.PlayerID)
+			assert.Equal(t, entry.RosterStatus, domain.StatusInactive)
+
+			assert.Equal(t, rv.TeamID, startingTeamID)
+			assert.Equal(t, rv.EffectiveThrough, startingLock)
+			if startingLength > 0 {
+				assert.Equal(t, rv.Entries[startingLength-1].PlayerID, startingLastPlayerID)
+			}
+		})
+	}
+}
+
 // rosterView returns a Roster containing a given number of players.
 //
 // Players will be assigned consecutive PlayerIDs beginning from 1.

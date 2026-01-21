@@ -73,6 +73,7 @@ func (rv RosterView) DecideAddPlayer(id PlayerID, effectiveAt time.Time) ([]Rost
 	return res, nil
 }
 
+// DecideActivatePlayer returns the ActivatedPlayerOnRoster events that should be recorded if allowed.
 func (rv RosterView) DecideActivatePlayer(id PlayerID, role PlayerRole, effectiveAt time.Time) ([]RosterEvent, error) {
 	err := rv.validateActivatePlayer(id, role)
 	if err != nil {
@@ -137,4 +138,14 @@ func (rv RosterView) validateActivatePlayer(id PlayerID, role PlayerRole) error 
 	}
 
 	return nil
+}
+
+func (rv *RosterView) Apply(event RosterEvent) {
+	switch ev := event.(type) {
+	case AddedPlayerToRoster:
+		rv.Entries = append(rv.Entries, RosterEntry{
+			PlayerID:     ev.PlayerID,
+			RosterStatus: StatusInactive,
+		})
+	}
 }
