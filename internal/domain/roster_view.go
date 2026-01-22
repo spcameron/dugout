@@ -13,13 +13,14 @@ const (
 )
 
 var (
-	ErrActiveHittersFull      = errors.New("roster already has the maximum active hitters")
-	ErrActivePitchersFull     = errors.New("roster already has the maximum active pitchers")
-	ErrPlayerAlreadyActive    = errors.New("player already activated")
-	ErrPlayerAlreadyOnRoster  = errors.New("player already on roster")
-	ErrRosterFull             = errors.New("roster is already full")
-	ErrPlayerNotOnRoster      = errors.New("player is not on the roster")
-	ErrUnrecognizedPlayerRole = errors.New("unrecognized player role")
+	ErrActiveHittersFull        = errors.New("roster already has the maximum active hitters")
+	ErrActivePitchersFull       = errors.New("roster already has the maximum active pitchers")
+	ErrPlayerAlreadyActive      = errors.New("player already activated")
+	ErrPlayerAlreadyOnRoster    = errors.New("player already on roster")
+	ErrRosterFull               = errors.New("roster is already full")
+	ErrPlayerNotOnRoster        = errors.New("player is not on the roster")
+	ErrUnrecognizedPlayerRole   = errors.New("unrecognized player role")
+	ErrUnrecognizedRosterStatus = errors.New("unrecognized roster status")
 )
 
 type RosterCounts struct {
@@ -47,7 +48,7 @@ func (rv RosterView) Counts() RosterCounts {
 		case StatusInactive:
 			rc.Inactive++
 		default:
-			panic(fmt.Errorf("unrecognized roster status: %v", e.RosterStatus))
+			panic(fmt.Errorf("%w: %v", ErrUnrecognizedRosterStatus, e.RosterStatus))
 		}
 
 		rc.Total++
@@ -141,6 +142,14 @@ func (rv RosterView) validateActivatePlayer(id PlayerID, role PlayerRole) error 
 }
 
 func (rv *RosterView) Apply(event RosterEvent) {
+	if event.OccurredAt().After(rv.EffectiveThrough) {
+		panic(fmt.Errorf("%w: event lock %v, view lock %v", ErrEventOutsideViewWindow, event.OccurredAt(), rv.EffectiveThrough))
+	}
+
+	if rv.TeamID != event.Team() {
+		panic(fmt.Errorf("%w: event team %v, view team %v", ErrWrongTeamID, event.Team(), rv.TeamID))
+	}
+
 	switch ev := event.(type) {
 	case AddedPlayerToRoster:
 		rv.Entries = append(rv.Entries, RosterEntry{

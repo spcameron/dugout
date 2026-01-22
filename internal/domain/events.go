@@ -5,6 +5,7 @@ import "time"
 type RosterEvent interface {
 	isDomainEvent()
 	Team() TeamID
+	OccurredAt() time.Time
 }
 
 type AddedPlayerToRoster struct {
@@ -17,6 +18,9 @@ func (e AddedPlayerToRoster) isDomainEvent() {}
 func (e AddedPlayerToRoster) Team() TeamID {
 	return e.TeamID
 }
+func (e AddedPlayerToRoster) OccurredAt() time.Time {
+	return e.EffectiveAt
+}
 
 type ActivatedPlayerOnRoster struct {
 	TeamID      TeamID
@@ -28,4 +32,7 @@ type ActivatedPlayerOnRoster struct {
 func (e ActivatedPlayerOnRoster) isDomainEvent() {}
 func (e ActivatedPlayerOnRoster) Team() TeamID {
 	return e.TeamID
+}
+func (e ActivatedPlayerOnRoster) OccurredAt() time.Time {
+	return e.EffectiveAt
 }
