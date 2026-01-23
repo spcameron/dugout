@@ -92,15 +92,35 @@ func (rv RosterView) DecideActivatePlayer(id PlayerID, role PlayerRole, effectiv
 	return res, nil
 }
 
+func (rv *RosterView) Apply(event RosterEvent) {
+	if event.OccurredAt().After(rv.EffectiveThrough) {
+		panic(fmt.Errorf("%w: event lock %v, view lock %v", ErrEventOutsideViewWindow, event.OccurredAt(), rv.EffectiveThrough))
+	}
+
+	if rv.TeamID != event.Team() {
+		panic(fmt.Errorf("%w: event team %v, view team %v", ErrWrongTeamID, event.Team(), rv.TeamID))
+	}
+
+	switch ev := event.(type) {
+	case AddedPlayerToRoster:
+		if rv.playerOnRoster(ev.PlayerID) {
+			panic(fmt.Errorf("%w: player ID %v", ErrPlayerAlreadyOnRoster, ev.PlayerID))
+		}
+
+		rv.Entries = append(rv.Entries, RosterEntry{
+			PlayerID:     ev.PlayerID,
+			RosterStatus: StatusInactive,
+		})
+	}
+}
+
 func (rv RosterView) validateAddPlayer(id PlayerID) error {
 	if len(rv.Entries) >= MaxRosterSize {
 		return ErrRosterFull
 	}
 
-	for _, e := range rv.Entries {
-		if e.PlayerID == id {
-			return ErrPlayerAlreadyOnRoster
-		}
+	if rv.playerOnRoster(id) {
+		return ErrPlayerAlreadyOnRoster
 	}
 
 	return nil
@@ -141,20 +161,12 @@ func (rv RosterView) validateActivatePlayer(id PlayerID, role PlayerRole) error 
 	return nil
 }
 
-func (rv *RosterView) Apply(event RosterEvent) {
-	if event.OccurredAt().After(rv.EffectiveThrough) {
-		panic(fmt.Errorf("%w: event lock %v, view lock %v", ErrEventOutsideViewWindow, event.OccurredAt(), rv.EffectiveThrough))
+func (rv RosterView) playerOnRoster(id PlayerID) bool {
+	for _, e := range rv.Entries {
+		if e.PlayerID == id {
+			return true
+		}
 	}
 
-	if rv.TeamID != event.Team() {
-		panic(fmt.Errorf("%w: event team %v, view team %v", ErrWrongTeamID, event.Team(), rv.TeamID))
-	}
-
-	switch ev := event.(type) {
-	case AddedPlayerToRoster:
-		rv.Entries = append(rv.Entries, RosterEntry{
-			PlayerID:     ev.PlayerID,
-			RosterStatus: StatusInactive,
-		})
-	}
+	return false
 }

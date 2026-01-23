@@ -409,7 +409,16 @@ func TestApply(t *testing.T) {
 			},
 			wantErr: domain.ErrEventOutsideViewWindow,
 		},
-		// TODO: "apply AddedPlayerToRoster panics if PlayerID is already on the team"
+		{
+			name: "apply AddedPlayerToRoster panics if a player with the same ID already present",
+			view: rosterView(teamA, 1, todayLock),
+			event: domain.AddedPlayerToRoster{
+				TeamID:      teamA,
+				PlayerID:    1,
+				EffectiveAt: todayLock,
+			},
+			wantErr: domain.ErrPlayerAlreadyOnRoster,
+		},
 	}
 
 	for _, tc := range panicCases {
