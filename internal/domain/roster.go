@@ -1,6 +1,9 @@
 package domain
 
-import "errors"
+import (
+	"errors"
+	"time"
+)
 
 var (
 	ErrEventOutsideViewWindow = errors.New("event is outside view effective window")
@@ -22,4 +25,21 @@ func (r *Roster) Append(events ...RosterEvent) error {
 	r.EventHistory = append(r.EventHistory, events...)
 
 	return nil
+}
+
+func (r Roster) ProjectThrough(through time.Time) RosterView {
+	rv := RosterView{
+		TeamID:           r.TeamID,
+		EffectiveThrough: through,
+	}
+
+	for _, e := range r.EventHistory {
+		if e.OccurredAt().After(through) {
+			continue
+		}
+
+		rv.Apply(e)
+	}
+
+	return rv
 }

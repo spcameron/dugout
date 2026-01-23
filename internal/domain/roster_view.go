@@ -20,6 +20,7 @@ var (
 	ErrRosterFull               = errors.New("roster is already full")
 	ErrPlayerNotOnRoster        = errors.New("player is not on the roster")
 	ErrUnrecognizedPlayerRole   = errors.New("unrecognized player role")
+	ErrUnrecognizedRosterEvent  = errors.New("unrecognized roster event")
 	ErrUnrecognizedRosterStatus = errors.New("unrecognized roster status")
 )
 
@@ -103,7 +104,7 @@ func (rv *RosterView) Apply(event RosterEvent) {
 
 	switch ev := event.(type) {
 	case AddedPlayerToRoster:
-		if rv.playerOnRoster(ev.PlayerID) {
+		if rv.PlayerOnRoster(ev.PlayerID) {
 			panic(fmt.Errorf("%w: player ID %v", ErrPlayerAlreadyOnRoster, ev.PlayerID))
 		}
 
@@ -111,7 +112,19 @@ func (rv *RosterView) Apply(event RosterEvent) {
 			PlayerID:     ev.PlayerID,
 			RosterStatus: StatusInactive,
 		})
+	default:
+		panic(fmt.Errorf("%w: %T", ErrUnrecognizedRosterEvent, event))
 	}
+}
+
+func (rv RosterView) PlayerOnRoster(id PlayerID) bool {
+	for _, e := range rv.Entries {
+		if e.PlayerID == id {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (rv RosterView) validateAddPlayer(id PlayerID) error {
@@ -119,7 +132,7 @@ func (rv RosterView) validateAddPlayer(id PlayerID) error {
 		return ErrRosterFull
 	}
 
-	if rv.playerOnRoster(id) {
+	if rv.PlayerOnRoster(id) {
 		return ErrPlayerAlreadyOnRoster
 	}
 
@@ -159,14 +172,4 @@ func (rv RosterView) validateActivatePlayer(id PlayerID, role PlayerRole) error 
 	}
 
 	return nil
-}
-
-func (rv RosterView) playerOnRoster(id PlayerID) bool {
-	for _, e := range rv.Entries {
-		if e.PlayerID == id {
-			return true
-		}
-	}
-
-	return false
 }
