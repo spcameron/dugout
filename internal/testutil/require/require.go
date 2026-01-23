@@ -105,6 +105,60 @@ func MatchesRegexp(t *testing.T, got, pattern string) {
 	}
 }
 
+// Panics asserts that fn panics (with any value).
+func Panics(t *testing.T, fn func()) {
+	t.Helper()
+
+	defer func() {
+		if got := recover(); got == nil {
+			t.Fatalf("expected panic, got none")
+		}
+	}()
+
+	fn()
+}
+
+// PanicsError asserts that fn panics and that the panic value implements error.
+// It returns the recovered error for further assertions.
+func PanicsError(t *testing.T, fn func()) (err error) {
+	t.Helper()
+
+	defer func() {
+		got := recover()
+		if got == nil {
+			t.Fatalf("expected panic, got none")
+			return
+		}
+
+		e, ok := got.(error)
+		if !ok {
+			t.Fatalf("expected panic value to be error, got %T (%v)", got, got)
+			return
+		}
+
+		err = e
+	}()
+
+	fn()
+	return nil
+}
+
+// PanicsErrorContains asserts that fn panics with an error whose Error() message
+// contains wantSubstring.
+func PanicsErrorContains(t *testing.T, fn func(), wantSubstring string) {
+	t.Helper()
+
+	err := PanicsError(t, fn)
+	if err == nil {
+		t.Fatalf("expected non-nil error from PanicsError")
+		return
+	}
+
+	if !strings.Contains(err.Error(), wantSubstring) {
+		t.Fatalf("expected panic message to contain %q, got %q", wantSubstring, err.Error())
+	}
+}
+
 type equaler[T any] interface {
 	Equal(T) bool
 }

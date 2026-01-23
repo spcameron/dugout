@@ -13,13 +13,14 @@ const (
 )
 
 var (
-	ErrActiveHittersFull      = errors.New("roster already has the maximum active hitters")
-	ErrActivePitchersFull     = errors.New("roster already has the maximum active pitchers")
-	ErrPlayerAlreadyActive    = errors.New("player already activated")
-	ErrPlayerAlreadyOnRoster  = errors.New("player already on roster")
-	ErrRosterFull             = errors.New("roster is already full")
-	ErrPlayerNotOnRoster      = errors.New("player is not on the roster")
-	ErrUnrecognizedPlayerRole = errors.New("unrecognized player role")
+	ErrActiveHittersFull        = errors.New("roster already has the maximum active hitters")
+	ErrActivePitchersFull       = errors.New("roster already has the maximum active pitchers")
+	ErrPlayerAlreadyActive      = errors.New("player already activated")
+	ErrPlayerAlreadyOnRoster    = errors.New("player already on roster")
+	ErrRosterFull               = errors.New("roster is already full")
+	ErrPlayerNotOnRoster        = errors.New("player is not on the roster")
+	ErrUnrecognizedPlayerRole   = errors.New("unrecognized player role")
+	ErrUnrecognizedRosterStatus = errors.New("unrecognized roster status")
 )
 
 type RosterCounts struct {
@@ -47,7 +48,7 @@ func (rv RosterView) Counts() RosterCounts {
 		case StatusInactive:
 			rc.Inactive++
 		default:
-			panic(fmt.Errorf("unrecognized roster status: %v", e.RosterStatus))
+			panic(fmt.Errorf("%w: %v", ErrUnrecognizedRosterStatus, e.RosterStatus))
 		}
 
 		rc.Total++
@@ -73,6 +74,7 @@ func (rv RosterView) DecideAddPlayer(id PlayerID, effectiveAt time.Time) ([]Rost
 	return res, nil
 }
 
+// DecideActivatePlayer returns the ActivatedPlayerOnRoster events that should be recorded if allowed.
 func (rv RosterView) DecideActivatePlayer(id PlayerID, role PlayerRole, effectiveAt time.Time) ([]RosterEvent, error) {
 	err := rv.validateActivatePlayer(id, role)
 	if err != nil {
@@ -90,15 +92,35 @@ func (rv RosterView) DecideActivatePlayer(id PlayerID, role PlayerRole, effectiv
 	return res, nil
 }
 
+func (rv *RosterView) Apply(event RosterEvent) {
+	if event.OccurredAt().After(rv.EffectiveThrough) {
+		panic(fmt.Errorf("%w: event lock %v, view lock %v", ErrEventOutsideViewWindow, event.OccurredAt(), rv.EffectiveThrough))
+	}
+
+	if rv.TeamID != event.Team() {
+		panic(fmt.Errorf("%w: event team %v, view team %v", ErrWrongTeamID, event.Team(), rv.TeamID))
+	}
+
+	switch ev := event.(type) {
+	case AddedPlayerToRoster:
+		if rv.playerOnRoster(ev.PlayerID) {
+			panic(fmt.Errorf("%w: player ID %v", ErrPlayerAlreadyOnRoster, ev.PlayerID))
+		}
+
+		rv.Entries = append(rv.Entries, RosterEntry{
+			PlayerID:     ev.PlayerID,
+			RosterStatus: StatusInactive,
+		})
+	}
+}
+
 func (rv RosterView) validateAddPlayer(id PlayerID) error {
 	if len(rv.Entries) >= MaxRosterSize {
 		return ErrRosterFull
 	}
 
-	for _, e := range rv.Entries {
-		if e.PlayerID == id {
-			return ErrPlayerAlreadyOnRoster
-		}
+	if rv.playerOnRoster(id) {
+		return ErrPlayerAlreadyOnRoster
 	}
 
 	return nil
@@ -137,4 +159,14 @@ func (rv RosterView) validateActivatePlayer(id PlayerID, role PlayerRole) error 
 	}
 
 	return nil
+}
+
+func (rv RosterView) playerOnRoster(id PlayerID) bool {
+	for _, e := range rv.Entries {
+		if e.PlayerID == id {
+			return true
+		}
+	}
+
+	return false
 }

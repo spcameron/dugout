@@ -2,7 +2,10 @@ package domain
 
 import "errors"
 
-var ErrWrongTeamID = errors.New("team IDs do not match")
+var (
+	ErrEventOutsideViewWindow = errors.New("event is outside view effective window")
+	ErrWrongTeamID            = errors.New("team IDs do not match")
+)
 
 type Roster struct {
 	TeamID       TeamID

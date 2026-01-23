@@ -318,28 +318,141 @@ func TestRosterCounts(t *testing.T) {
 			},
 		}
 
-		defer func() {
-			got := recover()
-			require.NotNil(t, got)
+		fn := func() { _ = r.Counts() }
 
-			err, ok := got.(error)
-			if !ok {
-				t.Fatalf("expected panic value to be error, got %T (%v)", got, got)
+		err := require.PanicsError(t, fn)
+
+		require.NotNil(t, err)
+		require.ErrorIs(t, err, domain.ErrUnrecognizedRosterStatus)
+	})
+}
+
+func TestApply(t *testing.T) {
+	testAddPlayerCases := []struct {
+		name  string
+		view  domain.RosterView
+		event domain.AddedPlayerToRoster
+	}{
+		{
+			name: "apply AddedPlayerToRoster to empty view creates one inactive entry",
+			view: rosterView(teamA, 0, todayLock),
+			event: domain.AddedPlayerToRoster{
+				TeamID:      teamA,
+				PlayerID:    1,
+				EffectiveAt: todayLock,
+			},
+		},
+		{
+			name: "apply AddedPlayerToRoster to view with existing entries appends new inactive entry",
+			view: rosterView(teamA, domain.MaxRosterSize-1, todayLock),
+			event: domain.AddedPlayerToRoster{
+				TeamID:      teamA,
+				PlayerID:    domain.MaxRosterSize,
+				EffectiveAt: todayLock,
+			},
+		},
+	}
+
+	for _, tc := range testAddPlayerCases {
+		t.Run(tc.name, func(t *testing.T) {
+			rv := tc.view
+
+			startingTeamID := rv.TeamID
+			startingLength := len(rv.Entries)
+			startingLock := rv.EffectiveThrough
+
+			var startingLastPlayerID domain.PlayerID
+			if startingLength > 0 {
+				startingLastPlayerID = rv.Entries[startingLength-1].PlayerID
 			}
 
-			msg := err.Error()
-			assert.Contains(t, msg, "unrecognized roster status: ")
-		}()
+			rv.Apply(tc.event)
 
-		_ = r.Counts()
-	})
+			require.Equal(t, len(rv.Entries), startingLength+1)
+
+			entry := rv.Entries[len(rv.Entries)-1]
+			assert.Equal(t, entry.PlayerID, tc.event.PlayerID)
+			assert.Equal(t, entry.RosterStatus, domain.StatusInactive)
+
+			assert.Equal(t, rv.TeamID, startingTeamID)
+			assert.Equal(t, rv.EffectiveThrough, startingLock)
+			if startingLength > 0 {
+				assert.Equal(t, rv.Entries[startingLength-1].PlayerID, startingLastPlayerID)
+			}
+		})
+	}
+
+	panicCases := []struct {
+		name           string
+		view           domain.RosterView
+		event          domain.AddedPlayerToRoster
+		wantErr        error
+		wantErrMessage string
+	}{
+		{
+			name: "apply AddedPlayerToRoster panics if TeamID does not match",
+			view: rosterView(teamA, domain.MaxRosterSize-1, todayLock),
+			event: domain.AddedPlayerToRoster{
+				TeamID:      teamB,
+				PlayerID:    domain.MaxRosterSize,
+				EffectiveAt: todayLock,
+			},
+			wantErr: domain.ErrWrongTeamID,
+		},
+		{
+			name: "apply AddedPlayerToRoster panics if event lock outside view effective window",
+			view: rosterView(teamA, domain.MaxRosterSize-1, todayLock),
+			event: domain.AddedPlayerToRoster{
+				TeamID:      teamA,
+				PlayerID:    domain.MaxRosterSize,
+				EffectiveAt: tomorrowLock,
+			},
+			wantErr: domain.ErrEventOutsideViewWindow,
+		},
+		{
+			name: "apply AddedPlayerToRoster panics if a player with the same ID already present",
+			view: rosterView(teamA, 1, todayLock),
+			event: domain.AddedPlayerToRoster{
+				TeamID:      teamA,
+				PlayerID:    1,
+				EffectiveAt: todayLock,
+			},
+			wantErr: domain.ErrPlayerAlreadyOnRoster,
+		},
+	}
+
+	for _, tc := range panicCases {
+		t.Run(tc.name, func(t *testing.T) {
+			rv := tc.view
+
+			startingTeamID := rv.TeamID
+			startingLength := len(rv.Entries)
+			startingLock := rv.EffectiveThrough
+
+			fn := func() { rv.Apply(tc.event) }
+
+			if tc.wantErr != nil {
+				err := require.PanicsError(t, fn)
+				require.NotNil(t, err)
+				require.ErrorIs(t, err, tc.wantErr)
+			} else if tc.wantErrMessage != "" {
+				require.PanicsErrorContains(t, fn, tc.wantErrMessage)
+			} else {
+				require.Panics(t, fn)
+			}
+
+			assert.Equal(t, rv.TeamID, startingTeamID)
+			assert.Equal(t, len(rv.Entries), startingLength)
+			assert.Equal(t, rv.EffectiveThrough, startingLock)
+		})
+	}
 }
 
 // rosterView returns a Roster containing a given number of players.
 //
 // Players will be assigned consecutive PlayerIDs beginning from 1.
 // Panics if the number of players is less than zero, or greater than MaxRosterSize.
-func rosterView(teamID domain.TeamID, players int, cutoff time.Time) domain.RosterView {
+func rosterView(teamID domain.TeamID, players int, lock time.Time) domain.RosterView {
 	if players < 0 {
 		panic("players cannot be negative")
 	}
@@ -351,7 +464,7 @@ func rosterView(teamID domain.TeamID, players int, cutoff time.Time) domain.Rost
 	rv := domain.RosterView{
 		TeamID:           teamID,
 		Entries:          make([]domain.RosterEntry, players),
-		EffectiveThrough: cutoff,
+		EffectiveThrough: lock,
 	}
 
 	for i := range players {
