@@ -9,6 +9,6 @@ import (
 var ErrUnrecognizedRecordedEvent = errors.New("unrecognized recorded event")
 
 type RecordedRosterEvent struct {
-	Sequence int
+	Sequence int64
 	Event    domain.RosterEvent
 }
