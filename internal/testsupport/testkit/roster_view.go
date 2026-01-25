@@ -1,6 +1,7 @@
 package testkit
 
 import (
+	"slices"
 	"time"
 
 	"github.com/spcameron/dugout/internal/domain"
@@ -48,9 +49,7 @@ func ActivatedRosterView(rv domain.RosterView, hitters, pitchers int) domain.Ros
 	hitters = min(hitters, domain.MaxActiveHitters)
 	pitchers = min(pitchers, domain.MaxActivePitchers)
 
-	copyEntries := make([]domain.RosterEntry, len(rv.Entries))
-	copy(copyEntries, rv.Entries)
-	rv.Entries = copyEntries
+	rv.Entries = slices.Clone(rv.Entries)
 
 	i := 0
 	for range hitters {

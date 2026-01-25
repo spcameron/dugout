@@ -5,8 +5,9 @@ import (
 	"time"
 
 	"github.com/spcameron/dugout/internal/domain"
-	"github.com/spcameron/dugout/internal/testutil/assert"
-	"github.com/spcameron/dugout/internal/testutil/require"
+	"github.com/spcameron/dugout/internal/testsupport/assert"
+	"github.com/spcameron/dugout/internal/testsupport/require"
+	"github.com/spcameron/dugout/internal/testsupport/testkit"
 )
 
 func TestDecideAddPlayer(t *testing.T) {
@@ -21,40 +22,40 @@ func TestDecideAddPlayer(t *testing.T) {
 		{
 			name:             "allow adding player to empty roster",
 			rosterSize:       0,
-			effectiveThrough: tomorrowLock,
+			effectiveThrough: testkit.TomorrowLock(),
 			playerID:         1,
-			effectiveAt:      tomorrowLock,
+			effectiveAt:      testkit.TomorrowLock(),
 			wantErr:          nil,
 		},
 		{
 			name:             "allow adding player to roster below cap",
 			rosterSize:       domain.MaxRosterSize - 1,
-			effectiveThrough: tomorrowLock,
+			effectiveThrough: testkit.TomorrowLock(),
 			playerID:         domain.MaxRosterSize,
-			effectiveAt:      tomorrowLock,
+			effectiveAt:      testkit.TomorrowLock(),
 			wantErr:          nil,
 		},
 		{
 			name:             "reject adding player to roster at cap",
 			rosterSize:       domain.MaxRosterSize,
-			effectiveThrough: tomorrowLock,
+			effectiveThrough: testkit.TomorrowLock(),
 			playerID:         domain.MaxRosterSize + 1,
-			effectiveAt:      tomorrowLock,
+			effectiveAt:      testkit.TomorrowLock(),
 			wantErr:          domain.ErrRosterFull,
 		},
 		{
 			name:             "reject adding player already on roster",
 			rosterSize:       1,
-			effectiveThrough: tomorrowLock,
+			effectiveThrough: testkit.TomorrowLock(),
 			playerID:         1,
-			effectiveAt:      tomorrowLock,
+			effectiveAt:      testkit.TomorrowLock(),
 			wantErr:          domain.ErrPlayerAlreadyOnRoster,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			rv := rosterView(teamA, tc.rosterSize, tc.effectiveThrough)
+			rv := testkit.NewRosterView(testkit.TeamA(), tc.rosterSize, tc.effectiveThrough)
 			candidateID := domain.PlayerID(tc.playerID)
 
 			events, err := rv.DecideAddPlayer(candidateID, tc.effectiveAt)
@@ -90,62 +91,62 @@ func TestDecideActivatePlayer(t *testing.T) {
 			name:             "allow activating a hitter when active hitters below cap",
 			activeHitters:    domain.MaxActiveHitters - 1,
 			activePitchers:   0,
-			effectiveThrough: tomorrowLock,
+			effectiveThrough: testkit.TomorrowLock(),
 			role:             domain.RoleHitter,
-			effectiveAt:      tomorrowLock,
+			effectiveAt:      testkit.TomorrowLock(),
 			wantErr:          nil,
 		},
 		{
 			name:             "allow activating a pitcher when active pitchers below cap",
 			activeHitters:    0,
 			activePitchers:   domain.MaxActivePitchers - 1,
-			effectiveThrough: tomorrowLock,
+			effectiveThrough: testkit.TomorrowLock(),
 			role:             domain.RolePitcher,
-			effectiveAt:      tomorrowLock,
+			effectiveAt:      testkit.TomorrowLock(),
 			wantErr:          nil,
 		},
 		{
 			name:             "reject activating a hitter when active hitters at cap",
 			activeHitters:    domain.MaxActiveHitters,
 			activePitchers:   0,
-			effectiveThrough: tomorrowLock,
+			effectiveThrough: testkit.TomorrowLock(),
 			role:             domain.RoleHitter,
-			effectiveAt:      tomorrowLock,
+			effectiveAt:      testkit.TomorrowLock(),
 			wantErr:          domain.ErrActiveHittersFull,
 		},
 		{
 			name:             "reject activating a pitcher when active pitchers at cap",
 			activeHitters:    0,
 			activePitchers:   domain.MaxActivePitchers,
-			effectiveThrough: tomorrowLock,
+			effectiveThrough: testkit.TomorrowLock(),
 			role:             domain.RolePitcher,
-			effectiveAt:      tomorrowLock,
+			effectiveAt:      testkit.TomorrowLock(),
 			wantErr:          domain.ErrActivePitchersFull,
 		},
 		{
 			name:             "allow activating a hitter when active pitchers at cap",
 			activeHitters:    0,
 			activePitchers:   domain.MaxActivePitchers,
-			effectiveThrough: tomorrowLock,
+			effectiveThrough: testkit.TomorrowLock(),
 			role:             domain.RoleHitter,
-			effectiveAt:      tomorrowLock,
+			effectiveAt:      testkit.TomorrowLock(),
 			wantErr:          nil,
 		},
 		{
 			name:             "allow activating a pitcher when active hitters at cap",
 			activeHitters:    domain.MaxActiveHitters,
 			activePitchers:   0,
-			effectiveThrough: tomorrowLock,
+			effectiveThrough: testkit.TomorrowLock(),
 			role:             domain.RolePitcher,
-			effectiveAt:      tomorrowLock,
+			effectiveAt:      testkit.TomorrowLock(),
 			wantErr:          nil,
 		},
 	}
 
 	for _, tc := range capacityCases {
 		t.Run(tc.name, func(t *testing.T) {
-			rv := activatedRosterView(
-				rosterView(teamA, domain.MaxRosterSize, tc.effectiveThrough),
+			rv := testkit.ActivatedRosterView(
+				testkit.NewRosterView(testkit.TeamA(), domain.MaxRosterSize, tc.effectiveThrough),
 				tc.activeHitters,
 				tc.activePitchers,
 			)
@@ -186,58 +187,58 @@ func TestDecideActivatePlayer(t *testing.T) {
 			name:             "reject activating a hitter not on roster",
 			activeHitters:    0,
 			activePitchers:   0,
-			effectiveThrough: tomorrowLock,
+			effectiveThrough: testkit.TomorrowLock(),
 			role:             domain.RoleHitter,
 			playerID:         domain.MaxRosterSize + 1,
-			effectiveAt:      tomorrowLock,
+			effectiveAt:      testkit.TomorrowLock(),
 			wantErr:          domain.ErrPlayerNotOnRoster,
 		},
 		{
 			name:             "reject activating a pitcher not on roster",
 			activeHitters:    0,
 			activePitchers:   0,
-			effectiveThrough: tomorrowLock,
+			effectiveThrough: testkit.TomorrowLock(),
 			role:             domain.RolePitcher,
 			playerID:         domain.MaxRosterSize + 1,
-			effectiveAt:      tomorrowLock,
+			effectiveAt:      testkit.TomorrowLock(),
 			wantErr:          domain.ErrPlayerNotOnRoster,
 		},
 		{
 			name:             "reject activating a hitter when already activated",
 			activeHitters:    domain.MaxActiveHitters - 1,
 			activePitchers:   0,
-			effectiveThrough: tomorrowLock,
+			effectiveThrough: testkit.TomorrowLock(),
 			role:             domain.RoleHitter,
 			playerID:         1,
-			effectiveAt:      tomorrowLock,
+			effectiveAt:      testkit.TomorrowLock(),
 			wantErr:          domain.ErrPlayerAlreadyActive,
 		},
 		{
 			name:             "reject activating a pitcher when already activated",
 			activeHitters:    0,
 			activePitchers:   domain.MaxActivePitchers - 1,
-			effectiveThrough: tomorrowLock,
+			effectiveThrough: testkit.TomorrowLock(),
 			role:             domain.RolePitcher,
 			playerID:         1,
-			effectiveAt:      tomorrowLock,
+			effectiveAt:      testkit.TomorrowLock(),
 			wantErr:          domain.ErrPlayerAlreadyActive,
 		},
 		{
 			name:             "reject activating player with unknown role",
 			activeHitters:    0,
 			activePitchers:   0,
-			effectiveThrough: tomorrowLock,
+			effectiveThrough: testkit.TomorrowLock(),
 			role:             domain.PlayerRole(999),
 			playerID:         1,
-			effectiveAt:      tomorrowLock,
+			effectiveAt:      testkit.TomorrowLock(),
 			wantErr:          domain.ErrUnrecognizedPlayerRole,
 		},
 	}
 
 	for _, tc := range membershipCases {
 		t.Run(tc.name, func(t *testing.T) {
-			rv := activatedRosterView(
-				rosterView(teamA, domain.MaxRosterSize, tc.effectiveThrough),
+			rv := testkit.ActivatedRosterView(
+				testkit.NewRosterView(testkit.TeamA(), domain.MaxRosterSize, tc.effectiveThrough),
 				tc.activeHitters,
 				tc.activePitchers,
 			)
@@ -291,8 +292,8 @@ func TestRosterCounts(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			rv := activatedRosterView(
-				rosterView(teamA, tc.rosterSize, todayLock),
+			rv := testkit.ActivatedRosterView(
+				testkit.NewRosterView(testkit.TeamA(), tc.rosterSize, testkit.TodayLock()),
 				tc.activeHitters,
 				tc.activePitchers,
 			)
@@ -309,7 +310,7 @@ func TestRosterCounts(t *testing.T) {
 
 	t.Run("panics on unrecognized roster status", func(t *testing.T) {
 		r := domain.RosterView{
-			TeamID: teamA,
+			TeamID: testkit.TeamA(),
 			Entries: []domain.RosterEntry{
 				{
 					PlayerID:     1,
@@ -335,20 +336,20 @@ func TestApply(t *testing.T) {
 	}{
 		{
 			name: "apply AddedPlayerToRoster to empty view creates one inactive entry",
-			view: rosterView(teamA, 0, todayLock),
+			view: testkit.NewRosterView(testkit.TeamA(), 0, testkit.TodayLock()),
 			event: domain.AddedPlayerToRoster{
-				TeamID:      teamA,
+				TeamID:      testkit.TeamA(),
 				PlayerID:    1,
-				EffectiveAt: todayLock,
+				EffectiveAt: testkit.TodayLock(),
 			},
 		},
 		{
 			name: "apply AddedPlayerToRoster to view with existing entries appends new inactive entry",
-			view: rosterView(teamA, domain.MaxRosterSize-1, todayLock),
+			view: testkit.NewRosterView(testkit.TeamA(), domain.MaxRosterSize-1, testkit.TodayLock()),
 			event: domain.AddedPlayerToRoster{
-				TeamID:      teamA,
+				TeamID:      testkit.TeamA(),
 				PlayerID:    domain.MaxRosterSize,
-				EffectiveAt: todayLock,
+				EffectiveAt: testkit.TodayLock(),
 			},
 		},
 	}
@@ -391,31 +392,31 @@ func TestApply(t *testing.T) {
 	}{
 		{
 			name: "apply AddedPlayerToRoster panics if TeamID does not match",
-			view: rosterView(teamA, domain.MaxRosterSize-1, todayLock),
+			view: testkit.NewRosterView(testkit.TeamA(), domain.MaxRosterSize-1, testkit.TodayLock()),
 			event: domain.AddedPlayerToRoster{
-				TeamID:      teamB,
+				TeamID:      testkit.TeamB(),
 				PlayerID:    domain.MaxRosterSize,
-				EffectiveAt: todayLock,
+				EffectiveAt: testkit.TodayLock(),
 			},
 			wantErr: domain.ErrWrongTeamID,
 		},
 		{
 			name: "apply AddedPlayerToRoster panics if event lock outside view effective window",
-			view: rosterView(teamA, domain.MaxRosterSize-1, todayLock),
+			view: testkit.NewRosterView(testkit.TeamA(), domain.MaxRosterSize-1, testkit.TodayLock()),
 			event: domain.AddedPlayerToRoster{
-				TeamID:      teamA,
+				TeamID:      testkit.TeamA(),
 				PlayerID:    domain.MaxRosterSize,
-				EffectiveAt: tomorrowLock,
+				EffectiveAt: testkit.TomorrowLock(),
 			},
 			wantErr: domain.ErrEventOutsideViewWindow,
 		},
 		{
 			name: "apply AddedPlayerToRoster panics if a player with the same ID already present",
-			view: rosterView(teamA, 1, todayLock),
+			view: testkit.NewRosterView(testkit.TeamA(), 1, testkit.TodayLock()),
 			event: domain.AddedPlayerToRoster{
-				TeamID:      teamA,
+				TeamID:      testkit.TeamA(),
 				PlayerID:    1,
-				EffectiveAt: todayLock,
+				EffectiveAt: testkit.TodayLock(),
 			},
 			wantErr: domain.ErrPlayerAlreadyOnRoster,
 		},
@@ -452,57 +453,57 @@ func TestApply(t *testing.T) {
 //
 // Players will be assigned consecutive PlayerIDs beginning from 1.
 // Panics if the number of players is less than zero, or greater than MaxRosterSize.
-func rosterView(teamID domain.TeamID, players int, lock time.Time) domain.RosterView {
-	if players < 0 {
-		panic("players cannot be negative")
-	}
-
-	if players > domain.MaxRosterSize {
-		panic("players exceeds MaxRosterSize")
-	}
-
-	rv := domain.RosterView{
-		TeamID:           teamID,
-		Entries:          make([]domain.RosterEntry, players),
-		EffectiveThrough: lock,
-	}
-
-	for i := range players {
-		rv.Entries[i] = domain.RosterEntry{
-			PlayerID:     domain.PlayerID(i + 1),
-			RosterStatus: domain.StatusInactive,
-		}
-	}
-
-	return rv
-}
+// func rosterView(teamID domain.TeamID, players int, lock time.Time) domain.RosterView {
+// 	if players < 0 {
+// 		panic("players cannot be negative")
+// 	}
+//
+// 	if players > domain.MaxRosterSize {
+// 		panic("players exceeds MaxRosterSize")
+// 	}
+//
+// 	rv := domain.RosterView{
+// 		TeamID:           teamID,
+// 		Entries:          make([]domain.RosterEntry, players),
+// 		EffectiveThrough: lock,
+// 	}
+//
+// 	for i := range players {
+// 		rv.Entries[i] = domain.RosterEntry{
+// 			PlayerID:     domain.PlayerID(i + 1),
+// 			RosterStatus: domain.StatusInactive,
+// 		}
+// 	}
+//
+// 	return rv
+// }
 
 // activatedRosterView returns a Roster with a given number of active hitters and active pitchers.
 //
 // The number of hitters and pitchers will not exceed the MaxActiveHitters and MaxActivePitchers.
 // Creates a shallow copy of the RosterView.Entries slice, so shared ownership is safe.
 // Panics if the given number of hitters and pitchers exceeds the length of r.Entries.
-func activatedRosterView(rv domain.RosterView, hitters, pitchers int) domain.RosterView {
-	if len(rv.Entries) < hitters+pitchers {
-		panic("roster entries cannot be fewer than total hitters and pitchers")
-	}
-
-	hitters = min(hitters, domain.MaxActiveHitters)
-	pitchers = min(pitchers, domain.MaxActivePitchers)
-
-	copyEntries := make([]domain.RosterEntry, len(rv.Entries))
-	copy(copyEntries, rv.Entries)
-	rv.Entries = copyEntries
-
-	i := 0
-	for range hitters {
-		rv.Entries[i].RosterStatus = domain.StatusActiveHitter
-		i++
-	}
-	for range pitchers {
-		rv.Entries[i].RosterStatus = domain.StatusActivePitcher
-		i++
-	}
-
-	return rv
-}
+// func activatedRosterView(rv domain.RosterView, hitters, pitchers int) domain.RosterView {
+// 	if len(rv.Entries) < hitters+pitchers {
+// 		panic("roster entries cannot be fewer than total hitters and pitchers")
+// 	}
+//
+// 	hitters = min(hitters, domain.MaxActiveHitters)
+// 	pitchers = min(pitchers, domain.MaxActivePitchers)
+//
+// 	copyEntries := make([]domain.RosterEntry, len(rv.Entries))
+// 	copy(copyEntries, rv.Entries)
+// 	rv.Entries = copyEntries
+//
+// 	i := 0
+// 	for range hitters {
+// 		rv.Entries[i].RosterStatus = domain.StatusActiveHitter
+// 		i++
+// 	}
+// 	for range pitchers {
+// 		rv.Entries[i].RosterStatus = domain.StatusActivePitcher
+// 		i++
+// 	}
+//
+// 	return rv
+// }

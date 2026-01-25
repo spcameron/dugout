@@ -2,28 +2,43 @@ package application
 
 import (
 	"fmt"
+	"slices"
+	"time"
 
 	"github.com/spcameron/dugout/internal/domain"
 )
 
 type RosterStream struct {
-	TeamID       domain.TeamID
-	EventHistory []RecordedEvent
+	TeamID         domain.TeamID
+	RecordedEvents []RecordedRosterEvent
 }
 
-func (rs *RosterStream) Append(events ...RecordedEvent) error {
+func (rs *RosterStream) Append(events ...RecordedRosterEvent) error {
 	for _, re := range events {
-		ev, ok := re.Event.(domain.RosterEvent)
-		if !ok {
-			return fmt.Errorf("%w: %T", ErrUnrecognizedRecordedEvent, re.Event)
-		}
-
-		if ev.Team() != rs.TeamID {
-			return fmt.Errorf("%w: event team %v, roster team %v", domain.ErrWrongTeamID, ev.Team(), rs.TeamID)
+		if re.Event.Team() != rs.TeamID {
+			return fmt.Errorf("%w: event team %v, roster team %v", domain.ErrWrongTeamID, re.Event.Team(), rs.TeamID)
 		}
 	}
 
-	rs.EventHistory = append(rs.EventHistory, events...)
+	rs.RecordedEvents = append(rs.RecordedEvents, events...)
 
 	return nil
+}
+
+func (rs RosterStream) ProjectThrough(through time.Time) domain.RosterView {
+	rv := domain.RosterView{
+		TeamID:           rs.TeamID,
+		EffectiveThrough: through,
+	}
+
+	history := slices.Clone(rs.RecordedEvents)
+	for _, ev := range history {
+		if ev.Event.OccurredAt().After(through) {
+			continue
+		}
+
+		rv.Apply(ev.Event)
+	}
+
+	return rv
 }

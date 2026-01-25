@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/spcameron/dugout/internal/testutil/assert"
-	"github.com/spcameron/dugout/internal/testutil/require"
+	"github.com/spcameron/dugout/internal/testsupport/assert"
+	"github.com/spcameron/dugout/internal/testsupport/require"
 )
 
 type unknownRosterEvent struct {
