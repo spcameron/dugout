@@ -2,8 +2,12 @@ package domain
 
 import "time"
 
-type RosterEvent interface {
+type DomainEvent interface {
 	isDomainEvent()
+}
+
+type RosterEvent interface {
+	DomainEvent
 	Team() TeamID
 	OccurredAt() time.Time
 }
