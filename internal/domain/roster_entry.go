@@ -24,6 +24,7 @@ func (s RosterStatus) String() string {
 }
 
 type RosterEntry struct {
+	TeamID       TeamID
 	PlayerID     PlayerID
 	RosterStatus RosterStatus
 }

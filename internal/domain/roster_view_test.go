@@ -1,6 +1,7 @@
 package domain_test
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -20,7 +21,7 @@ func TestDecideAddPlayer(t *testing.T) {
 		wantErr          error
 	}{
 		{
-			name:             "allow adding player to empty roster",
+			name:             "accept adding player to empty roster",
 			rosterSize:       0,
 			effectiveThrough: testkit.TomorrowLock(),
 			playerID:         1,
@@ -28,7 +29,7 @@ func TestDecideAddPlayer(t *testing.T) {
 			wantErr:          nil,
 		},
 		{
-			name:             "allow adding player to roster below cap",
+			name:             "accept adding player to roster below cap",
 			rosterSize:       domain.MaxRosterSize - 1,
 			effectiveThrough: testkit.TomorrowLock(),
 			playerID:         domain.MaxRosterSize,
@@ -67,6 +68,7 @@ func TestDecideAddPlayer(t *testing.T) {
 				ev, ok := events[0].(domain.AddedPlayerToRoster)
 				require.True(t, ok)
 
+				assert.Equal(t, ev.TeamID, testkit.TeamA())
 				assert.Equal(t, ev.EffectiveAt, tc.effectiveAt)
 				assert.Equal(t, ev.PlayerID, candidateID)
 			} else {
@@ -88,7 +90,7 @@ func TestDecideActivatePlayer(t *testing.T) {
 		wantErr          error
 	}{
 		{
-			name:             "allow activating a hitter when active hitters below cap",
+			name:             "accept activating a hitter when active hitters below cap",
 			activeHitters:    domain.MaxActiveHitters - 1,
 			activePitchers:   0,
 			effectiveThrough: testkit.TomorrowLock(),
@@ -97,7 +99,7 @@ func TestDecideActivatePlayer(t *testing.T) {
 			wantErr:          nil,
 		},
 		{
-			name:             "allow activating a pitcher when active pitchers below cap",
+			name:             "accept activating a pitcher when active pitchers below cap",
 			activeHitters:    0,
 			activePitchers:   domain.MaxActivePitchers - 1,
 			effectiveThrough: testkit.TomorrowLock(),
@@ -124,7 +126,7 @@ func TestDecideActivatePlayer(t *testing.T) {
 			wantErr:          domain.ErrActivePitchersFull,
 		},
 		{
-			name:             "allow activating a hitter when active pitchers at cap",
+			name:             "accept activating a hitter when active pitchers at cap",
 			activeHitters:    0,
 			activePitchers:   domain.MaxActivePitchers,
 			effectiveThrough: testkit.TomorrowLock(),
@@ -133,7 +135,7 @@ func TestDecideActivatePlayer(t *testing.T) {
 			wantErr:          nil,
 		},
 		{
-			name:             "allow activating a pitcher when active hitters at cap",
+			name:             "accept activating a pitcher when active hitters at cap",
 			activeHitters:    domain.MaxActiveHitters,
 			activePitchers:   0,
 			effectiveThrough: testkit.TomorrowLock(),
@@ -163,6 +165,7 @@ func TestDecideActivatePlayer(t *testing.T) {
 				ev, ok := events[0].(domain.ActivatedPlayerOnRoster)
 				require.True(t, ok)
 
+				assert.Equal(t, ev.TeamID, testkit.TeamA())
 				assert.Equal(t, ev.EffectiveAt, tc.effectiveAt)
 				assert.Equal(t, ev.PlayerID, candidateID)
 				assert.Equal(t, ev.PlayerRole, tc.role)
@@ -249,6 +252,66 @@ func TestDecideActivatePlayer(t *testing.T) {
 
 			if tc.wantErr == nil {
 				assert.NoError(t, err)
+			} else {
+				assert.Nil(t, events)
+				assert.ErrorIs(t, err, tc.wantErr)
+			}
+		})
+	}
+}
+
+func TestRemovePlayer(t *testing.T) {
+	testCases := []struct {
+		name             string
+		rosterSize       int
+		effectiveThrough time.Time
+		playerID         int
+		effectiveAt      time.Time
+		wantErr          error
+	}{
+		{
+			name:             "accept removing player on roster",
+			rosterSize:       1,
+			effectiveThrough: testkit.TomorrowLock(),
+			playerID:         1,
+			effectiveAt:      testkit.TomorrowLock(),
+			wantErr:          nil,
+		},
+		{
+			name:             "reject removing player not on roster",
+			rosterSize:       1,
+			effectiveThrough: testkit.TomorrowLock(),
+			playerID:         2,
+			effectiveAt:      testkit.TomorrowLock(),
+			wantErr:          domain.ErrPlayerNotOnRoster,
+		},
+		{
+			name:             "reject removing player from empty roster",
+			rosterSize:       0,
+			effectiveThrough: testkit.TomorrowLock(),
+			playerID:         1,
+			effectiveAt:      testkit.TomorrowLock(),
+			wantErr:          domain.ErrPlayerNotOnRoster,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			rv := testkit.NewRosterView(testkit.TeamA(), tc.rosterSize, tc.effectiveThrough)
+			candidateID := domain.PlayerID(tc.playerID)
+
+			events, err := rv.DecideRemovePlayer(candidateID, tc.effectiveAt)
+
+			if tc.wantErr == nil {
+				assert.NoError(t, err)
+				require.Equal(t, len(events), 1)
+
+				ev, ok := events[0].(domain.RemovedPlayerFromRoster)
+				require.True(t, ok)
+
+				assert.Equal(t, ev.TeamID, testkit.TeamA())
+				assert.Equal(t, ev.EffectiveAt, tc.effectiveAt)
+				assert.Equal(t, ev.PlayerID, candidateID)
 			} else {
 				assert.Nil(t, events)
 				assert.ErrorIs(t, err, tc.wantErr)
@@ -372,6 +435,7 @@ func TestApply(t *testing.T) {
 			require.Equal(t, len(rv.Entries), startingLength+1)
 
 			entry := rv.Entries[len(rv.Entries)-1]
+			assert.Equal(t, entry.TeamID, tc.event.TeamID)
 			assert.Equal(t, entry.PlayerID, tc.event.PlayerID)
 			assert.Equal(t, entry.RosterStatus, domain.StatusInactive)
 
@@ -383,6 +447,94 @@ func TestApply(t *testing.T) {
 		})
 	}
 
+	testRemovePlayerCases := []struct {
+		name          string
+		view          domain.RosterView
+		event         domain.RemovedPlayerFromRoster
+		wasPresent    bool
+		wantOnRoster  []domain.PlayerID
+		wantOffRoster []domain.PlayerID
+	}{
+		{
+			name: "apply RemovedPlayerFromRoster to empty view is idempotent",
+			view: testkit.NewRosterView(testkit.TeamA(), 0, testkit.TodayLock()),
+			event: domain.RemovedPlayerFromRoster{
+				TeamID:      testkit.TeamA(),
+				PlayerID:    1,
+				EffectiveAt: testkit.TodayLock(),
+			},
+			wasPresent:    false,
+			wantOffRoster: []domain.PlayerID{1},
+		},
+		{
+			name: "apply RemovedPlayerFromRoster for player not on roster is idempotent",
+			view: testkit.NewRosterView(testkit.TeamA(), 1, testkit.TodayLock()),
+			event: domain.RemovedPlayerFromRoster{
+				TeamID:      testkit.TeamA(),
+				PlayerID:    2,
+				EffectiveAt: testkit.TodayLock(),
+			},
+			wasPresent:    false,
+			wantOnRoster:  []domain.PlayerID{1},
+			wantOffRoster: []domain.PlayerID{2},
+		},
+		{
+			name: "apply RemovedPlayerFromRoster removes the player when present",
+			view: testkit.NewRosterView(testkit.TeamA(), 2, testkit.TodayLock()),
+			event: domain.RemovedPlayerFromRoster{
+				TeamID:      testkit.TeamA(),
+				PlayerID:    2,
+				EffectiveAt: testkit.TodayLock(),
+			},
+			wasPresent:    true,
+			wantOnRoster:  []domain.PlayerID{1},
+			wantOffRoster: []domain.PlayerID{2},
+		},
+		{
+			name: "apply RemovedPlayerFromRoster removes a player from the middle",
+			view: testkit.NewRosterView(testkit.TeamA(), 3, testkit.TodayLock()),
+			event: domain.RemovedPlayerFromRoster{
+				TeamID:      testkit.TeamA(),
+				PlayerID:    2,
+				EffectiveAt: testkit.TodayLock(),
+			},
+			wasPresent:    true,
+			wantOnRoster:  []domain.PlayerID{1, 3},
+			wantOffRoster: []domain.PlayerID{2},
+		},
+	}
+
+	for _, tc := range testRemovePlayerCases {
+		t.Run(tc.name, func(t *testing.T) {
+			rv := tc.view
+
+			startingTeamID := rv.TeamID
+			startingLength := len(rv.Entries)
+			startingLock := rv.EffectiveThrough
+			startingEntries := slices.Clone(rv.Entries)
+
+			rv.Apply(tc.event)
+
+			if tc.wasPresent {
+				require.Equal(t, len(rv.Entries), startingLength-1)
+			} else {
+				require.Equal(t, len(rv.Entries), startingLength)
+				require.Equal(t, rv.Entries, startingEntries)
+			}
+
+			for _, id := range tc.wantOnRoster {
+				assert.True(t, rv.PlayerOnRoster(id))
+			}
+
+			for _, id := range tc.wantOffRoster {
+				assert.False(t, rv.PlayerOnRoster(id))
+			}
+
+			assert.Equal(t, rv.TeamID, startingTeamID)
+			assert.Equal(t, rv.EffectiveThrough, startingLock)
+		})
+	}
+
 	panicCases := []struct {
 		name           string
 		view           domain.RosterView
@@ -391,7 +543,7 @@ func TestApply(t *testing.T) {
 		wantErrMessage string
 	}{
 		{
-			name: "apply AddedPlayerToRoster panics if TeamID does not match",
+			name: "apply RosterEvent panics if TeamID does not match",
 			view: testkit.NewRosterView(testkit.TeamA(), domain.MaxRosterSize-1, testkit.TodayLock()),
 			event: domain.AddedPlayerToRoster{
 				TeamID:      testkit.TeamB(),
@@ -401,7 +553,7 @@ func TestApply(t *testing.T) {
 			wantErr: domain.ErrWrongTeamID,
 		},
 		{
-			name: "apply AddedPlayerToRoster panics if event lock outside view effective window",
+			name: "apply RosterEvent panics if event lock outside view effective window",
 			view: testkit.NewRosterView(testkit.TeamA(), domain.MaxRosterSize-1, testkit.TodayLock()),
 			event: domain.AddedPlayerToRoster{
 				TeamID:      testkit.TeamA(),

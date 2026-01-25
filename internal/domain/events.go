@@ -26,6 +26,20 @@ func (e AddedPlayerToRoster) OccurredAt() time.Time {
 	return e.EffectiveAt
 }
 
+type RemovedPlayerFromRoster struct {
+	TeamID      TeamID
+	PlayerID    PlayerID
+	EffectiveAt time.Time
+}
+
+func (e RemovedPlayerFromRoster) isDomainEvent() {}
+func (e RemovedPlayerFromRoster) Team() TeamID {
+	return e.TeamID
+}
+func (e RemovedPlayerFromRoster) OccurredAt() time.Time {
+	return e.EffectiveAt
+}
+
 type ActivatedPlayerOnRoster struct {
 	TeamID      TeamID
 	PlayerID    PlayerID

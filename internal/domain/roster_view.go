@@ -69,6 +69,24 @@ func (rv RosterView) DecideAddPlayer(id PlayerID, effectiveAt time.Time) ([]Rost
 
 	res := []RosterEvent{
 		AddedPlayerToRoster{
+			TeamID:      rv.TeamID,
+			PlayerID:    id,
+			EffectiveAt: effectiveAt,
+		},
+	}
+
+	return res, nil
+}
+
+func (rv RosterView) DecideRemovePlayer(id PlayerID, effectiveAt time.Time) ([]RosterEvent, error) {
+	err := rv.validateRemovePlayer(id)
+	if err != nil {
+		return nil, err
+	}
+
+	res := []RosterEvent{
+		RemovedPlayerFromRoster{
+			TeamID:      rv.TeamID,
 			PlayerID:    id,
 			EffectiveAt: effectiveAt,
 		},
@@ -86,6 +104,7 @@ func (rv RosterView) DecideActivatePlayer(id PlayerID, role PlayerRole, effectiv
 
 	res := []RosterEvent{
 		ActivatedPlayerOnRoster{
+			TeamID:      rv.TeamID,
 			PlayerID:    id,
 			PlayerRole:  role,
 			EffectiveAt: effectiveAt,
@@ -111,9 +130,12 @@ func (rv *RosterView) Apply(event RosterEvent) {
 		}
 
 		rv.Entries = append(rv.Entries, RosterEntry{
+			TeamID:       rv.TeamID,
 			PlayerID:     ev.PlayerID,
 			RosterStatus: StatusInactive,
 		})
+	case RemovedPlayerFromRoster:
+		rv.removePlayer(ev.PlayerID)
 	default:
 		panic(fmt.Errorf("%w: %T", ErrUnrecognizedRosterEvent, event))
 	}
@@ -136,6 +158,14 @@ func (rv RosterView) validateAddPlayer(id PlayerID) error {
 
 	if rv.PlayerOnRoster(id) {
 		return ErrPlayerAlreadyOnRoster
+	}
+
+	return nil
+}
+
+func (rv RosterView) validateRemovePlayer(id PlayerID) error {
+	if !rv.PlayerOnRoster(id) {
+		return ErrPlayerNotOnRoster
 	}
 
 	return nil
@@ -174,4 +204,20 @@ func (rv RosterView) validateActivatePlayer(id PlayerID, role PlayerRole) error 
 	}
 
 	return nil
+}
+
+func (rv *RosterView) removePlayer(id PlayerID) {
+	for i, e := range rv.Entries {
+		if e.PlayerID != id {
+			continue
+		}
+
+		copy(rv.Entries[i:], rv.Entries[i+1:])
+
+		var zero RosterEntry
+		rv.Entries[len(rv.Entries)-1] = zero
+
+		rv.Entries = rv.Entries[:len(rv.Entries)-1]
+		return
+	}
 }
