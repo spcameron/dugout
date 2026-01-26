@@ -39,6 +39,10 @@ type RosterView struct {
 	EffectiveThrough time.Time
 }
 
+// Counts tabulates the number of total players, active hitters, active pitchers,
+// and inactive players among the stored RosterEntries.
+//
+// Panics if an unrecognized RosterStatus is encountered.
 func (rv RosterView) Counts() RosterCounts {
 	rc := RosterCounts{}
 
@@ -78,6 +82,7 @@ func (rv RosterView) DecideAddPlayer(id PlayerID, effectiveAt time.Time) ([]Rost
 	return res, nil
 }
 
+// DecideRemovePlayer returns the RemovedPlayerFromRoster events that should be recorded if allowed.
 func (rv RosterView) DecideRemovePlayer(id PlayerID, effectiveAt time.Time) ([]RosterEvent, error) {
 	err := rv.validateRemovePlayer(id)
 	if err != nil {
@@ -114,6 +119,10 @@ func (rv RosterView) DecideActivatePlayer(id PlayerID, role PlayerRole, effectiv
 	return res, nil
 }
 
+// Apply applies a roster domain event to the view.
+//
+// Events whose postconditions already hold are treated as no-ops.
+// Events that would violate roster invariants cause Apply to panic.
 func (rv *RosterView) Apply(event RosterEvent) {
 	if event.OccurredAt().After(rv.EffectiveThrough) {
 		panic(fmt.Errorf("%w: event lock %v, view lock %v", ErrEventOutsideViewWindow, event.OccurredAt(), rv.EffectiveThrough))
@@ -125,15 +134,7 @@ func (rv *RosterView) Apply(event RosterEvent) {
 
 	switch ev := event.(type) {
 	case AddedPlayerToRoster:
-		if rv.PlayerOnRoster(ev.PlayerID) {
-			panic(fmt.Errorf("%w: player ID %v", ErrPlayerAlreadyOnRoster, ev.PlayerID))
-		}
-
-		rv.Entries = append(rv.Entries, RosterEntry{
-			TeamID:       rv.TeamID,
-			PlayerID:     ev.PlayerID,
-			RosterStatus: StatusInactive,
-		})
+		rv.addPlayer(ev.PlayerID)
 	case RemovedPlayerFromRoster:
 		rv.removePlayer(ev.PlayerID)
 	default:
@@ -141,6 +142,8 @@ func (rv *RosterView) Apply(event RosterEvent) {
 	}
 }
 
+// PlayerOnRoster checks the PlayerID for each RosterEntry, and returns true if
+// a match is found for the PlayerID passed as argument.
 func (rv RosterView) PlayerOnRoster(id PlayerID) bool {
 	for _, e := range rv.Entries {
 		if e.PlayerID == id {
@@ -204,6 +207,18 @@ func (rv RosterView) validateActivatePlayer(id PlayerID, role PlayerRole) error 
 	}
 
 	return nil
+}
+
+func (rv *RosterView) addPlayer(id PlayerID) {
+	if rv.PlayerOnRoster(id) {
+		panic(fmt.Errorf("%w: player ID %v", ErrPlayerAlreadyOnRoster, id))
+	}
+
+	rv.Entries = append(rv.Entries, RosterEntry{
+		TeamID:       rv.TeamID,
+		PlayerID:     id,
+		RosterStatus: StatusInactive,
+	})
 }
 
 func (rv *RosterView) removePlayer(id PlayerID) {

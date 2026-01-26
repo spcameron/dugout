@@ -1,6 +1,7 @@
 package application_test
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -304,6 +305,56 @@ func TestProjectThrough(t *testing.T) {
 			wantOnRoster:  []domain.PlayerID{1, 3},
 			wantOffRoster: []domain.PlayerID{2},
 		},
+		{
+			name:             "applies event in sequence order, not input order",
+			teamID:           testkit.TeamA(),
+			effectiveThrough: testkit.TodayLock(),
+			events: []application.RecordedRosterEvent{
+				{
+					Sequence: 2,
+					Event: domain.RemovedPlayerFromRoster{
+						TeamID:      testkit.TeamA(),
+						PlayerID:    1,
+						EffectiveAt: testkit.TodayLock(),
+					},
+				},
+				{
+					Sequence: 1,
+					Event: domain.AddedPlayerToRoster{
+						TeamID:      testkit.TeamA(),
+						PlayerID:    1,
+						EffectiveAt: testkit.TodayLock(),
+					},
+				},
+			},
+			wantOnRoster:  nil,
+			wantOffRoster: []domain.PlayerID{1},
+		},
+		{
+			name:             "filtering events by time happens independent of sorting",
+			teamID:           testkit.TeamA(),
+			effectiveThrough: testkit.TodayLock(),
+			events: []application.RecordedRosterEvent{
+				{
+					Sequence: 1,
+					Event: domain.AddedPlayerToRoster{
+						TeamID:      testkit.TeamA(),
+						PlayerID:    1,
+						EffectiveAt: testkit.TodayLock(),
+					},
+				},
+				{
+					Sequence: 2,
+					Event: domain.RemovedPlayerFromRoster{
+						TeamID:      testkit.TeamA(),
+						PlayerID:    1,
+						EffectiveAt: testkit.TomorrowLock(),
+					},
+				},
+			},
+			wantOnRoster:  []domain.PlayerID{1},
+			wantOffRoster: nil,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -313,7 +364,7 @@ func TestProjectThrough(t *testing.T) {
 				RecordedEvents: tc.events,
 			}
 
-			startingHistory := append([]application.RecordedRosterEvent(nil), tc.events...)
+			startingHistory := slices.Clone(tc.events)
 
 			rv := rs.ProjectThrough(tc.effectiveThrough)
 
@@ -361,6 +412,30 @@ func TestProjectThrough(t *testing.T) {
 				},
 			},
 			wantErr: domain.ErrWrongTeamID,
+		},
+		{
+			name:             "panics if two events have the same sequence value",
+			teamID:           testkit.TeamA(),
+			effectiveThrough: testkit.TodayLock(),
+			events: []application.RecordedRosterEvent{
+				{
+					Sequence: 1,
+					Event: domain.AddedPlayerToRoster{
+						TeamID:      testkit.TeamA(),
+						PlayerID:    1,
+						EffectiveAt: testkit.TodayLock(),
+					},
+				},
+				{
+					Sequence: 1,
+					Event: domain.RemovedPlayerFromRoster{
+						TeamID:      testkit.TeamA(),
+						PlayerID:    1,
+						EffectiveAt: testkit.TodayLock(),
+					},
+				},
+			},
+			wantErr: application.ErrDuplicateRecordedEventSequence,
 		},
 	}
 
