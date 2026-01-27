@@ -122,6 +122,8 @@ func (rv *RosterView) Apply(event RosterEvent) {
 		rv.addPlayer(ev.PlayerID)
 	case RemovedPlayerFromRoster:
 		rv.removePlayer(ev.PlayerID)
+	case ActivatedPlayerOnRoster:
+		rv.activatePlayer(ev.PlayerID, ev.PlayerRole)
 	default:
 		panic(fmt.Errorf("%w: %T", ErrUnrecognizedRosterEvent, event))
 	}
@@ -220,4 +222,25 @@ func (rv *RosterView) removePlayer(id PlayerID) {
 		rv.Entries = rv.Entries[:len(rv.Entries)-1]
 		return
 	}
+}
+
+func (rv *RosterView) activatePlayer(id PlayerID, role PlayerRole) {
+	for i, e := range rv.Entries {
+		if e.PlayerID != id {
+			continue
+		}
+
+		switch role {
+		case RoleHitter:
+			rv.Entries[i].RosterStatus = StatusActiveHitter
+		case RolePitcher:
+			rv.Entries[i].RosterStatus = StatusActivePitcher
+		default:
+			panic(fmt.Errorf("%w: %s", ErrUnrecognizedPlayerRole, role))
+		}
+
+		return
+	}
+
+	panic(fmt.Errorf("%w: player ID %v", ErrPlayerNotOnRoster, id))
 }

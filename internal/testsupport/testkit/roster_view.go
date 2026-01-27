@@ -28,6 +28,7 @@ func NewRosterView(teamID domain.TeamID, players int, lock time.Time) domain.Ros
 
 	for i := range players {
 		rv.Entries[i] = domain.RosterEntry{
+			TeamID:       teamID,
 			PlayerID:     domain.PlayerID(i + 1),
 			RosterStatus: domain.StatusInactive,
 		}

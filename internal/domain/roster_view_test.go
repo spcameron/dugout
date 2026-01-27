@@ -260,7 +260,7 @@ func TestDecideActivatePlayer(t *testing.T) {
 	}
 }
 
-func TestRemovePlayer(t *testing.T) {
+func TestDecideRemovePlayer(t *testing.T) {
 	testCases := []struct {
 		name             string
 		rosterSize       int
@@ -320,7 +320,7 @@ func TestRemovePlayer(t *testing.T) {
 	}
 }
 
-func TestRosterCounts(t *testing.T) {
+func TestCounts(t *testing.T) {
 	testCases := []struct {
 		name           string
 		rosterSize     int
@@ -456,7 +456,7 @@ func TestApply(t *testing.T) {
 		wantOffRoster []domain.PlayerID
 	}{
 		{
-			name: "apply RemovedPlayerFromRoster to empty view is idempotent",
+			name: "apply RemovedPlayerFromRoster to empty view is no-op",
 			view: testkit.NewRosterView(testkit.TeamA(), 0, testkit.TodayLock()),
 			event: domain.RemovedPlayerFromRoster{
 				TeamID:      testkit.TeamA(),
@@ -467,7 +467,7 @@ func TestApply(t *testing.T) {
 			wantOffRoster: []domain.PlayerID{1},
 		},
 		{
-			name: "apply RemovedPlayerFromRoster for player not on roster is idempotent",
+			name: "apply RemovedPlayerFromRoster for player not on roster is no-op",
 			view: testkit.NewRosterView(testkit.TeamA(), 1, testkit.TodayLock()),
 			event: domain.RemovedPlayerFromRoster{
 				TeamID:      testkit.TeamA(),
@@ -535,10 +535,106 @@ func TestApply(t *testing.T) {
 		})
 	}
 
+	testActivatePlayerCases := []struct {
+		name         string
+		view         domain.RosterView
+		event        domain.RosterEvent
+		wantHitters  []domain.PlayerID
+		wantPitchers []domain.PlayerID
+		wantInactive []domain.PlayerID
+	}{
+		{
+			name: "activating a hitter on roster updates entry to active hitter status",
+			view: testkit.NewRosterView(testkit.TeamA(), 2, testkit.TodayLock()),
+			event: domain.ActivatedPlayerOnRoster{
+				TeamID:      testkit.TeamA(),
+				PlayerID:    1,
+				PlayerRole:  domain.RoleHitter,
+				EffectiveAt: testkit.TodayLock(),
+			},
+			wantHitters:  []domain.PlayerID{1},
+			wantInactive: []domain.PlayerID{2},
+		},
+		{
+			name: "activating a pitcher on roster updates entry to active pitcher status",
+			view: testkit.NewRosterView(testkit.TeamA(), 2, testkit.TodayLock()),
+			event: domain.ActivatedPlayerOnRoster{
+				TeamID:      testkit.TeamA(),
+				PlayerID:    1,
+				PlayerRole:  domain.RolePitcher,
+				EffectiveAt: testkit.TodayLock(),
+			},
+			wantPitchers: []domain.PlayerID{1},
+			wantInactive: []domain.PlayerID{2},
+		},
+		{
+			name: "activating a hitter already with active hitter status is no-op",
+			view: testkit.ActivatedRosterView(
+				testkit.NewRosterView(testkit.TeamA(), 2, testkit.TodayLock()),
+				1, 0,
+			),
+			event: domain.ActivatedPlayerOnRoster{
+				TeamID:      testkit.TeamA(),
+				PlayerID:    1,
+				PlayerRole:  domain.RoleHitter,
+				EffectiveAt: testkit.TodayLock(),
+			},
+			wantHitters:  []domain.PlayerID{1},
+			wantInactive: []domain.PlayerID{2},
+		},
+		{
+			name: "activating a pitcher already with active pitcher status is no-op",
+			view: testkit.ActivatedRosterView(
+				testkit.NewRosterView(testkit.TeamA(), 2, testkit.TodayLock()),
+				0, 1,
+			),
+			event: domain.ActivatedPlayerOnRoster{
+				TeamID:      testkit.TeamA(),
+				PlayerID:    1,
+				PlayerRole:  domain.RolePitcher,
+				EffectiveAt: testkit.TodayLock(),
+			},
+			wantPitchers: []domain.PlayerID{1},
+			wantInactive: []domain.PlayerID{2},
+		},
+	}
+
+	for _, tc := range testActivatePlayerCases {
+		t.Run(tc.name, func(t *testing.T) {
+			rv := tc.view
+
+			startingTeamID := rv.TeamID
+			startingLength := len(rv.Entries)
+			startingLock := rv.EffectiveThrough
+
+			rv.Apply(tc.event)
+
+			for _, e := range rv.Entries {
+				id := e.PlayerID
+				status := e.RosterStatus
+
+				switch {
+				case slices.Contains(tc.wantHitters, id):
+					assert.Equal(t, status, domain.StatusActiveHitter)
+				case slices.Contains(tc.wantPitchers, id):
+					assert.Equal(t, status, domain.StatusActivePitcher)
+				case slices.Contains(tc.wantInactive, id):
+					assert.Equal(t, status, domain.StatusInactive)
+				}
+
+				assert.Equal(t, e.TeamID, rv.TeamID)
+			}
+
+			assert.Equal(t, rv.TeamID, startingTeamID)
+			assert.Equal(t, len(rv.Entries), startingLength)
+			assert.Equal(t, rv.EffectiveThrough, startingLock)
+		})
+	}
+
 	panicCases := []struct {
 		name           string
 		view           domain.RosterView
-		event          domain.AddedPlayerToRoster
+		event          domain.RosterEvent
 		wantErr        error
 		wantErrMessage string
 	}{
@@ -571,6 +667,28 @@ func TestApply(t *testing.T) {
 				EffectiveAt: testkit.TodayLock(),
 			},
 			wantErr: domain.ErrPlayerAlreadyOnRoster,
+		},
+		{
+			name: "apply ActivatedPlayerToRoster panics if player role is unrecognized",
+			view: testkit.NewRosterView(testkit.TeamA(), 1, testkit.TodayLock()),
+			event: domain.ActivatedPlayerOnRoster{
+				TeamID:      testkit.TeamA(),
+				PlayerID:    1,
+				PlayerRole:  domain.PlayerRole(999),
+				EffectiveAt: testkit.TodayLock(),
+			},
+			wantErr: domain.ErrUnrecognizedPlayerRole,
+		},
+		{
+			name: "apply ActivatedPlayerToRoster panics if player is not already on roster",
+			view: testkit.NewRosterView(testkit.TeamA(), 1, testkit.TodayLock()),
+			event: domain.ActivatedPlayerOnRoster{
+				TeamID:      testkit.TeamA(),
+				PlayerID:    2,
+				PlayerRole:  domain.RoleHitter,
+				EffectiveAt: testkit.TodayLock(),
+			},
+			wantErr: domain.ErrPlayerNotOnRoster,
 		},
 	}
 
