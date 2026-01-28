@@ -54,3 +54,17 @@ func (e ActivatedPlayerOnRoster) Team() TeamID {
 func (e ActivatedPlayerOnRoster) OccurredAt() time.Time {
 	return e.EffectiveAt
 }
+
+type InactivatedPlayerOnRoster struct {
+	TeamID      TeamID
+	PlayerID    PlayerID
+	EffectiveAt time.Time
+}
+
+func (e InactivatedPlayerOnRoster) isDomainEvent() {}
+func (e InactivatedPlayerOnRoster) Team() TeamID {
+	return e.TeamID
+}
+func (e InactivatedPlayerOnRoster) OccurredAt() time.Time {
+	return e.EffectiveAt
+}
