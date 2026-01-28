@@ -50,7 +50,7 @@ func (rv RosterView) Counts() RosterCounts {
 }
 
 // DecideAddPlayer returns the AddedPlayerToRoster events that should be recorded if allowed.
-func (rv RosterView) DecideAddPlayer(id PlayerID, effectiveAt time.Time) ([]RosterEvent, error) {
+func (rv RosterView) DecideAddPlayer(id PlayerID) ([]RosterEvent, error) {
 	err := rv.validateAddPlayer(id)
 	if err != nil {
 		return nil, err
@@ -60,7 +60,7 @@ func (rv RosterView) DecideAddPlayer(id PlayerID, effectiveAt time.Time) ([]Rost
 		AddedPlayerToRoster{
 			TeamID:      rv.TeamID,
 			PlayerID:    id,
-			EffectiveAt: effectiveAt,
+			EffectiveAt: rv.EffectiveThrough,
 		},
 	}
 
@@ -68,7 +68,7 @@ func (rv RosterView) DecideAddPlayer(id PlayerID, effectiveAt time.Time) ([]Rost
 }
 
 // DecideRemovePlayer returns the RemovedPlayerFromRoster events that should be recorded if allowed.
-func (rv RosterView) DecideRemovePlayer(id PlayerID, effectiveAt time.Time) ([]RosterEvent, error) {
+func (rv RosterView) DecideRemovePlayer(id PlayerID) ([]RosterEvent, error) {
 	err := rv.validateRemovePlayer(id)
 	if err != nil {
 		return nil, err
@@ -78,7 +78,7 @@ func (rv RosterView) DecideRemovePlayer(id PlayerID, effectiveAt time.Time) ([]R
 		RemovedPlayerFromRoster{
 			TeamID:      rv.TeamID,
 			PlayerID:    id,
-			EffectiveAt: effectiveAt,
+			EffectiveAt: rv.EffectiveThrough,
 		},
 	}
 
@@ -86,7 +86,7 @@ func (rv RosterView) DecideRemovePlayer(id PlayerID, effectiveAt time.Time) ([]R
 }
 
 // DecideActivatePlayer returns the ActivatedPlayerOnRoster events that should be recorded if allowed.
-func (rv RosterView) DecideActivatePlayer(id PlayerID, role PlayerRole, effectiveAt time.Time) ([]RosterEvent, error) {
+func (rv RosterView) DecideActivatePlayer(id PlayerID, role PlayerRole) ([]RosterEvent, error) {
 	err := rv.validateActivatePlayer(id, role)
 	if err != nil {
 		return nil, err
@@ -97,7 +97,7 @@ func (rv RosterView) DecideActivatePlayer(id PlayerID, role PlayerRole, effectiv
 			TeamID:      rv.TeamID,
 			PlayerID:    id,
 			PlayerRole:  role,
-			EffectiveAt: effectiveAt,
+			EffectiveAt: rv.EffectiveThrough,
 		},
 	}
 
@@ -105,7 +105,7 @@ func (rv RosterView) DecideActivatePlayer(id PlayerID, role PlayerRole, effectiv
 }
 
 // DecideInactivatePlayer returns the InactivatedPlayerOnRoster events that should be recorded if allowed.
-func (rv RosterView) DecideInactivatePlayer(id PlayerID, effectiveAt time.Time) ([]RosterEvent, error) {
+func (rv RosterView) DecideInactivatePlayer(id PlayerID) ([]RosterEvent, error) {
 	err := rv.validateInactivatePlayer(id)
 	if err != nil {
 		return nil, err
@@ -115,7 +115,7 @@ func (rv RosterView) DecideInactivatePlayer(id PlayerID, effectiveAt time.Time) 
 		InactivatedPlayerOnRoster{
 			TeamID:      rv.TeamID,
 			PlayerID:    id,
-			EffectiveAt: effectiveAt,
+			EffectiveAt: rv.EffectiveThrough,
 		},
 	}
 
@@ -185,12 +185,16 @@ func (rv RosterView) validateActivatePlayer(id PlayerID, role PlayerRole) error 
 	var onRoster bool
 	for _, e := range rv.Entries {
 		if e.PlayerID == id {
+			if e.RosterStatus == StatusInactive {
+				onRoster = true
+				break
+			}
+
 			if e.RosterStatus == StatusActiveHitter || e.RosterStatus == StatusActivePitcher {
 				return ErrPlayerAlreadyActive
 			}
 
-			onRoster = true
-			break
+			return ErrUnrecognizedRosterStatus
 		}
 	}
 
