@@ -3,7 +3,6 @@ package domain_test
 import (
 	"slices"
 	"testing"
-	"time"
 
 	"github.com/spcameron/dugout/internal/domain"
 	"github.com/spcameron/dugout/internal/testsupport/assert"
@@ -13,53 +12,43 @@ import (
 
 func TestDecideAddPlayer(t *testing.T) {
 	testCases := []struct {
-		name             string
-		rosterSize       int
-		effectiveThrough time.Time
-		playerID         int
-		effectiveAt      time.Time
-		wantErr          error
+		name       string
+		rosterSize int
+		playerID   int
+		wantErr    error
 	}{
 		{
-			name:             "accept adding player to empty roster",
-			rosterSize:       0,
-			effectiveThrough: testkit.TomorrowLock(),
-			playerID:         1,
-			effectiveAt:      testkit.TomorrowLock(),
-			wantErr:          nil,
+			name:       "accept adding player to empty roster",
+			rosterSize: 0,
+			playerID:   1,
+			wantErr:    nil,
 		},
 		{
-			name:             "accept adding player to roster below cap",
-			rosterSize:       domain.MaxRosterSize - 1,
-			effectiveThrough: testkit.TomorrowLock(),
-			playerID:         domain.MaxRosterSize,
-			effectiveAt:      testkit.TomorrowLock(),
-			wantErr:          nil,
+			name:       "accept adding player to roster below cap",
+			rosterSize: domain.MaxRosterSize - 1,
+			playerID:   domain.MaxRosterSize,
+			wantErr:    nil,
 		},
 		{
-			name:             "reject adding player to roster at cap",
-			rosterSize:       domain.MaxRosterSize,
-			effectiveThrough: testkit.TomorrowLock(),
-			playerID:         domain.MaxRosterSize + 1,
-			effectiveAt:      testkit.TomorrowLock(),
-			wantErr:          domain.ErrRosterFull,
+			name:       "reject adding player to roster at cap",
+			rosterSize: domain.MaxRosterSize,
+			playerID:   domain.MaxRosterSize + 1,
+			wantErr:    domain.ErrRosterFull,
 		},
 		{
-			name:             "reject adding player already on roster",
-			rosterSize:       1,
-			effectiveThrough: testkit.TomorrowLock(),
-			playerID:         1,
-			effectiveAt:      testkit.TomorrowLock(),
-			wantErr:          domain.ErrPlayerAlreadyOnRoster,
+			name:       "reject adding player already on roster",
+			rosterSize: 1,
+			playerID:   1,
+			wantErr:    domain.ErrPlayerAlreadyOnRoster,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			rv := testkit.NewRosterView(testkit.TeamA(), tc.rosterSize, tc.effectiveThrough)
 			candidateID := domain.PlayerID(tc.playerID)
+			rv := testkit.NewRosterView(testkit.TeamA(), tc.rosterSize, testkit.TodayLock())
 
-			events, err := rv.DecideAddPlayer(candidateID, tc.effectiveAt)
+			events, err := rv.DecideAddPlayer(candidateID)
 
 			if tc.wantErr == nil {
 				assert.NoError(t, err)
@@ -69,189 +58,8 @@ func TestDecideAddPlayer(t *testing.T) {
 				require.True(t, ok)
 
 				assert.Equal(t, ev.TeamID, testkit.TeamA())
-				assert.Equal(t, ev.EffectiveAt, tc.effectiveAt)
+				assert.Equal(t, ev.EffectiveAt, rv.EffectiveThrough)
 				assert.Equal(t, ev.PlayerID, candidateID)
-			} else {
-				assert.Nil(t, events)
-				assert.ErrorIs(t, err, tc.wantErr)
-			}
-		})
-	}
-}
-
-func TestDecideActivatePlayer(t *testing.T) {
-	capacityCases := []struct {
-		name             string
-		activeHitters    int
-		activePitchers   int
-		effectiveThrough time.Time
-		role             domain.PlayerRole
-		effectiveAt      time.Time
-		wantErr          error
-	}{
-		{
-			name:             "accept activating a hitter when active hitters below cap",
-			activeHitters:    domain.MaxActiveHitters - 1,
-			activePitchers:   0,
-			effectiveThrough: testkit.TomorrowLock(),
-			role:             domain.RoleHitter,
-			effectiveAt:      testkit.TomorrowLock(),
-			wantErr:          nil,
-		},
-		{
-			name:             "accept activating a pitcher when active pitchers below cap",
-			activeHitters:    0,
-			activePitchers:   domain.MaxActivePitchers - 1,
-			effectiveThrough: testkit.TomorrowLock(),
-			role:             domain.RolePitcher,
-			effectiveAt:      testkit.TomorrowLock(),
-			wantErr:          nil,
-		},
-		{
-			name:             "reject activating a hitter when active hitters at cap",
-			activeHitters:    domain.MaxActiveHitters,
-			activePitchers:   0,
-			effectiveThrough: testkit.TomorrowLock(),
-			role:             domain.RoleHitter,
-			effectiveAt:      testkit.TomorrowLock(),
-			wantErr:          domain.ErrActiveHittersFull,
-		},
-		{
-			name:             "reject activating a pitcher when active pitchers at cap",
-			activeHitters:    0,
-			activePitchers:   domain.MaxActivePitchers,
-			effectiveThrough: testkit.TomorrowLock(),
-			role:             domain.RolePitcher,
-			effectiveAt:      testkit.TomorrowLock(),
-			wantErr:          domain.ErrActivePitchersFull,
-		},
-		{
-			name:             "accept activating a hitter when active pitchers at cap",
-			activeHitters:    0,
-			activePitchers:   domain.MaxActivePitchers,
-			effectiveThrough: testkit.TomorrowLock(),
-			role:             domain.RoleHitter,
-			effectiveAt:      testkit.TomorrowLock(),
-			wantErr:          nil,
-		},
-		{
-			name:             "accept activating a pitcher when active hitters at cap",
-			activeHitters:    domain.MaxActiveHitters,
-			activePitchers:   0,
-			effectiveThrough: testkit.TomorrowLock(),
-			role:             domain.RolePitcher,
-			effectiveAt:      testkit.TomorrowLock(),
-			wantErr:          nil,
-		},
-	}
-
-	for _, tc := range capacityCases {
-		t.Run(tc.name, func(t *testing.T) {
-			rv := testkit.ActivatedRosterView(
-				testkit.NewRosterView(testkit.TeamA(), domain.MaxRosterSize, tc.effectiveThrough),
-				tc.activeHitters,
-				tc.activePitchers,
-			)
-
-			// fixed, known-inactive player
-			candidateID := domain.PlayerID(domain.MaxRosterSize)
-
-			events, err := rv.DecideActivatePlayer(candidateID, tc.role, tc.effectiveAt)
-
-			if tc.wantErr == nil {
-				assert.NoError(t, err)
-				require.Equal(t, len(events), 1)
-
-				ev, ok := events[0].(domain.ActivatedPlayerOnRoster)
-				require.True(t, ok)
-
-				assert.Equal(t, ev.TeamID, testkit.TeamA())
-				assert.Equal(t, ev.EffectiveAt, tc.effectiveAt)
-				assert.Equal(t, ev.PlayerID, candidateID)
-				assert.Equal(t, ev.PlayerRole, tc.role)
-			} else {
-				assert.Nil(t, events)
-				assert.ErrorIs(t, err, tc.wantErr)
-			}
-		})
-	}
-
-	membershipCases := []struct {
-		name             string
-		activeHitters    int
-		activePitchers   int
-		effectiveThrough time.Time
-		role             domain.PlayerRole
-		playerID         int
-		effectiveAt      time.Time
-		wantErr          error
-	}{
-		{
-			name:             "reject activating a hitter not on roster",
-			activeHitters:    0,
-			activePitchers:   0,
-			effectiveThrough: testkit.TomorrowLock(),
-			role:             domain.RoleHitter,
-			playerID:         domain.MaxRosterSize + 1,
-			effectiveAt:      testkit.TomorrowLock(),
-			wantErr:          domain.ErrPlayerNotOnRoster,
-		},
-		{
-			name:             "reject activating a pitcher not on roster",
-			activeHitters:    0,
-			activePitchers:   0,
-			effectiveThrough: testkit.TomorrowLock(),
-			role:             domain.RolePitcher,
-			playerID:         domain.MaxRosterSize + 1,
-			effectiveAt:      testkit.TomorrowLock(),
-			wantErr:          domain.ErrPlayerNotOnRoster,
-		},
-		{
-			name:             "reject activating a hitter when already activated",
-			activeHitters:    domain.MaxActiveHitters - 1,
-			activePitchers:   0,
-			effectiveThrough: testkit.TomorrowLock(),
-			role:             domain.RoleHitter,
-			playerID:         1,
-			effectiveAt:      testkit.TomorrowLock(),
-			wantErr:          domain.ErrPlayerAlreadyActive,
-		},
-		{
-			name:             "reject activating a pitcher when already activated",
-			activeHitters:    0,
-			activePitchers:   domain.MaxActivePitchers - 1,
-			effectiveThrough: testkit.TomorrowLock(),
-			role:             domain.RolePitcher,
-			playerID:         1,
-			effectiveAt:      testkit.TomorrowLock(),
-			wantErr:          domain.ErrPlayerAlreadyActive,
-		},
-		{
-			name:             "reject activating player with unknown role",
-			activeHitters:    0,
-			activePitchers:   0,
-			effectiveThrough: testkit.TomorrowLock(),
-			role:             domain.PlayerRole(999),
-			playerID:         1,
-			effectiveAt:      testkit.TomorrowLock(),
-			wantErr:          domain.ErrUnrecognizedPlayerRole,
-		},
-	}
-
-	for _, tc := range membershipCases {
-		t.Run(tc.name, func(t *testing.T) {
-			rv := testkit.ActivatedRosterView(
-				testkit.NewRosterView(testkit.TeamA(), domain.MaxRosterSize, tc.effectiveThrough),
-				tc.activeHitters,
-				tc.activePitchers,
-			)
-
-			candidateID := domain.PlayerID(tc.playerID)
-
-			events, err := rv.DecideActivatePlayer(candidateID, tc.role, tc.effectiveAt)
-
-			if tc.wantErr == nil {
-				assert.NoError(t, err)
 			} else {
 				assert.Nil(t, events)
 				assert.ErrorIs(t, err, tc.wantErr)
@@ -262,45 +70,37 @@ func TestDecideActivatePlayer(t *testing.T) {
 
 func TestDecideRemovePlayer(t *testing.T) {
 	testCases := []struct {
-		name             string
-		rosterSize       int
-		effectiveThrough time.Time
-		playerID         int
-		effectiveAt      time.Time
-		wantErr          error
+		name       string
+		rosterSize int
+		playerID   int
+		wantErr    error
 	}{
 		{
-			name:             "accept removing player on roster",
-			rosterSize:       1,
-			effectiveThrough: testkit.TomorrowLock(),
-			playerID:         1,
-			effectiveAt:      testkit.TomorrowLock(),
-			wantErr:          nil,
+			name:       "accept removing player on roster",
+			rosterSize: 1,
+			playerID:   1,
+			wantErr:    nil,
 		},
 		{
-			name:             "reject removing player not on roster",
-			rosterSize:       1,
-			effectiveThrough: testkit.TomorrowLock(),
-			playerID:         2,
-			effectiveAt:      testkit.TomorrowLock(),
-			wantErr:          domain.ErrPlayerNotOnRoster,
+			name:       "reject removing player not on roster",
+			rosterSize: 1,
+			playerID:   2,
+			wantErr:    domain.ErrPlayerNotOnRoster,
 		},
 		{
-			name:             "reject removing player from empty roster",
-			rosterSize:       0,
-			effectiveThrough: testkit.TomorrowLock(),
-			playerID:         1,
-			effectiveAt:      testkit.TomorrowLock(),
-			wantErr:          domain.ErrPlayerNotOnRoster,
+			name:       "reject removing player from empty roster",
+			rosterSize: 0,
+			playerID:   1,
+			wantErr:    domain.ErrPlayerNotOnRoster,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			rv := testkit.NewRosterView(testkit.TeamA(), tc.rosterSize, tc.effectiveThrough)
 			candidateID := domain.PlayerID(tc.playerID)
+			rv := testkit.NewRosterView(testkit.TeamA(), tc.rosterSize, testkit.TodayLock())
 
-			events, err := rv.DecideRemovePlayer(candidateID, tc.effectiveAt)
+			events, err := rv.DecideRemovePlayer(candidateID)
 
 			if tc.wantErr == nil {
 				assert.NoError(t, err)
@@ -310,7 +110,7 @@ func TestDecideRemovePlayer(t *testing.T) {
 				require.True(t, ok)
 
 				assert.Equal(t, ev.TeamID, testkit.TeamA())
-				assert.Equal(t, ev.EffectiveAt, tc.effectiveAt)
+				assert.Equal(t, ev.EffectiveAt, rv.EffectiveThrough)
 				assert.Equal(t, ev.PlayerID, candidateID)
 			} else {
 				assert.Nil(t, events)
@@ -320,65 +120,204 @@ func TestDecideRemovePlayer(t *testing.T) {
 	}
 }
 
-func TestDecideInactivatePlayer(t *testing.T) {
+func TestDecideActivatePlayer(t *testing.T) {
 	testCases := []struct {
-		name             string
-		activeHitters    int
-		activePitchers   int
-		effectiveThrough time.Time
-		playerID         domain.PlayerID
-		effectiveAt      time.Time
-		wantErr          error
+		name           string
+		activeHitters  int
+		activePitchers int
+		playerID       domain.PlayerID
+		role           domain.PlayerRole
+		wantErr        error
 	}{
 		{
-			name:             "accept inactivating an active hitter on roster",
-			activeHitters:    domain.MaxActiveHitters,
-			activePitchers:   0,
-			effectiveThrough: testkit.TodayLock(),
-			playerID:         1,
-			effectiveAt:      testkit.TodayLock(),
-			wantErr:          nil,
+			name:           "accept activating a hitter when active hitters below cap",
+			activeHitters:  domain.MaxActiveHitters - 1,
+			activePitchers: 0,
+			playerID:       domain.MaxRosterSize,
+			role:           domain.RoleHitter,
+			wantErr:        nil,
 		},
 		{
-			name:             "accept inactivating an active pitcher on roster",
-			activeHitters:    0,
-			activePitchers:   domain.MaxActivePitchers,
-			effectiveThrough: testkit.TodayLock(),
-			playerID:         1,
-			effectiveAt:      testkit.TodayLock(),
-			wantErr:          nil,
+			name:           "accept activating a pitcher when active pitchers below cap",
+			activeHitters:  0,
+			activePitchers: domain.MaxActivePitchers - 1,
+			playerID:       domain.MaxRosterSize,
+			role:           domain.RolePitcher,
+			wantErr:        nil,
 		},
 		{
-			name:             "reject inactivating a player not roster",
-			activeHitters:    domain.MaxActiveHitters,
-			activePitchers:   domain.MaxActivePitchers,
-			effectiveThrough: testkit.TodayLock(),
-			playerID:         domain.MaxRosterSize + 1,
-			effectiveAt:      testkit.TodayLock(),
-			wantErr:          domain.ErrPlayerNotOnRoster,
+			name:           "reject activating a hitter when active hitters at cap",
+			activeHitters:  domain.MaxActiveHitters,
+			activePitchers: 0,
+			playerID:       domain.MaxRosterSize,
+			role:           domain.RoleHitter,
+			wantErr:        domain.ErrActiveHittersFull,
 		},
 		{
-			name:             "reject inactivating a player already inactive",
-			activeHitters:    0,
-			activePitchers:   0,
-			effectiveThrough: testkit.TodayLock(),
-			playerID:         1,
-			effectiveAt:      testkit.TodayLock(),
-			wantErr:          domain.ErrPlayerAlreadyInactive,
+			name:           "reject activating a pitcher when active pitchers at cap",
+			activeHitters:  0,
+			activePitchers: domain.MaxActivePitchers,
+			playerID:       domain.MaxRosterSize,
+			role:           domain.RolePitcher,
+			wantErr:        domain.ErrActivePitchersFull,
+		},
+		{
+			name:           "accept activating a hitter when active pitchers at cap",
+			activeHitters:  0,
+			activePitchers: domain.MaxActivePitchers,
+			playerID:       domain.MaxRosterSize,
+			role:           domain.RoleHitter,
+			wantErr:        nil,
+		},
+		{
+			name:           "accept activating a pitcher when active hitters at cap",
+			activeHitters:  domain.MaxActiveHitters,
+			activePitchers: 0,
+			playerID:       domain.MaxRosterSize,
+			role:           domain.RolePitcher,
+			wantErr:        nil,
+		},
+		{
+			name:           "reject activating a hitter not on roster",
+			activeHitters:  0,
+			activePitchers: 0,
+			playerID:       domain.MaxRosterSize + 1,
+			role:           domain.RoleHitter,
+			wantErr:        domain.ErrPlayerNotOnRoster,
+		},
+		{
+			name:           "reject activating a pitcher not on roster",
+			activeHitters:  0,
+			activePitchers: 0,
+			playerID:       domain.MaxRosterSize + 1,
+			role:           domain.RolePitcher,
+			wantErr:        domain.ErrPlayerNotOnRoster,
+		},
+		{
+			name:           "reject activating a hitter when already activated",
+			activeHitters:  domain.MaxActiveHitters - 1,
+			activePitchers: 0,
+			playerID:       1,
+			role:           domain.RoleHitter,
+			wantErr:        domain.ErrPlayerAlreadyActive,
+		},
+		{
+			name:           "reject activating a pitcher when already activated",
+			activeHitters:  0,
+			activePitchers: domain.MaxActivePitchers - 1,
+			playerID:       1,
+			role:           domain.RolePitcher,
+			wantErr:        domain.ErrPlayerAlreadyActive,
+		},
+		{
+			name:           "reject activating player with unknown role",
+			activeHitters:  0,
+			activePitchers: 0,
+			playerID:       1,
+			role:           domain.PlayerRole(999),
+			wantErr:        domain.ErrUnrecognizedPlayerRole,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			candidateID := domain.PlayerID(tc.playerID)
+			rv := testkit.ActivatedRosterView(
+				testkit.NewRosterView(testkit.TeamA(), domain.MaxRosterSize, testkit.TodayLock()),
+				tc.activeHitters,
+				tc.activePitchers,
+			)
+
+			events, err := rv.DecideActivatePlayer(candidateID, tc.role)
+
+			if tc.wantErr == nil {
+				assert.NoError(t, err)
+				require.Equal(t, len(events), 1)
+
+				ev, ok := events[0].(domain.ActivatedPlayerOnRoster)
+				require.True(t, ok)
+
+				assert.Equal(t, ev.TeamID, testkit.TeamA())
+				assert.Equal(t, ev.EffectiveAt, rv.EffectiveThrough)
+				assert.Equal(t, ev.PlayerID, candidateID)
+				assert.Equal(t, ev.PlayerRole, tc.role)
+			} else {
+				assert.Nil(t, events)
+				assert.ErrorIs(t, err, tc.wantErr)
+			}
+		})
+	}
+
+	t.Run("reject activating a player with a bogus roster status", func(t *testing.T) {
+		candidateID := domain.PlayerID(1)
+		rv := domain.RosterView{
+			TeamID: testkit.TeamA(),
+			Entries: []domain.RosterEntry{
+				{
+					TeamID:       testkit.TeamA(),
+					PlayerID:     candidateID,
+					RosterStatus: domain.RosterStatus(999),
+				},
+			},
+			EffectiveThrough: testkit.TodayLock(),
+		}
+
+		events, err := rv.DecideActivatePlayer(candidateID, domain.RoleHitter)
+
+		assert.Nil(t, events)
+		assert.ErrorIs(t, err, domain.ErrUnrecognizedRosterStatus)
+	})
+}
+
+func TestDecideInactivatePlayer(t *testing.T) {
+	testCases := []struct {
+		name           string
+		activeHitters  int
+		activePitchers int
+		playerID       domain.PlayerID
+		wantErr        error
+	}{
+		{
+			name:           "accept inactivating an active hitter on roster",
+			activeHitters:  domain.MaxActiveHitters,
+			activePitchers: 0,
+			playerID:       1,
+			wantErr:        nil,
+		},
+		{
+			name:           "accept inactivating an active pitcher on roster",
+			activeHitters:  0,
+			activePitchers: domain.MaxActivePitchers,
+			playerID:       1,
+			wantErr:        nil,
+		},
+		{
+			name:           "reject inactivating a player not on roster",
+			activeHitters:  domain.MaxActiveHitters,
+			activePitchers: domain.MaxActivePitchers,
+			playerID:       domain.MaxRosterSize + 1,
+			wantErr:        domain.ErrPlayerNotOnRoster,
+		},
+		{
+			name:           "reject inactivating a player already inactive",
+			activeHitters:  0,
+			activePitchers: 0,
+			playerID:       1,
+			wantErr:        domain.ErrPlayerAlreadyInactive,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			rv := testkit.ActivatedRosterView(
-				testkit.NewRosterView(testkit.TeamA(), domain.MaxRosterSize, tc.effectiveThrough),
+				testkit.NewRosterView(testkit.TeamA(), domain.MaxRosterSize, testkit.TodayLock()),
 				tc.activeHitters,
 				tc.activePitchers,
 			)
 
 			candidateID := domain.PlayerID(tc.playerID)
 
-			events, err := rv.DecideInactivatePlayer(candidateID, tc.effectiveAt)
+			events, err := rv.DecideInactivatePlayer(candidateID)
 
 			if tc.wantErr == nil {
 				assert.NoError(t, err)
@@ -388,7 +327,7 @@ func TestDecideInactivatePlayer(t *testing.T) {
 				require.True(t, ok)
 
 				assert.Equal(t, ev.TeamID, testkit.TeamA())
-				assert.Equal(t, ev.EffectiveAt, tc.effectiveAt)
+				assert.Equal(t, ev.EffectiveAt, rv.EffectiveThrough)
 				assert.Equal(t, ev.PlayerID, candidateID)
 			} else {
 				assert.Nil(t, events)
@@ -402,7 +341,8 @@ func TestDecideInactivatePlayer(t *testing.T) {
 		rv := domain.RosterView{
 			TeamID: testkit.TeamA(),
 			Entries: []domain.RosterEntry{
-				{TeamID: testkit.TeamA(),
+				{
+					TeamID:       testkit.TeamA(),
 					PlayerID:     candidateID,
 					RosterStatus: domain.RosterStatus(999),
 				},
@@ -410,7 +350,7 @@ func TestDecideInactivatePlayer(t *testing.T) {
 			EffectiveThrough: testkit.TodayLock(),
 		}
 
-		events, err := rv.DecideInactivatePlayer(candidateID, testkit.TodayLock())
+		events, err := rv.DecideInactivatePlayer(candidateID)
 
 		assert.Nil(t, events)
 		assert.ErrorIs(t, err, domain.ErrUnrecognizedRosterStatus)
