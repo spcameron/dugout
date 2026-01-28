@@ -104,6 +104,24 @@ func (rv RosterView) DecideActivatePlayer(id PlayerID, role PlayerRole, effectiv
 	return res, nil
 }
 
+// DecideInactivatePlayer returns the InactivatedPlayerOnRoster events that should be recorded if allowed.
+func (rv RosterView) DecideInactivatePlayer(id PlayerID, effectiveAt time.Time) ([]RosterEvent, error) {
+	err := rv.validateInactivatePlayer(id)
+	if err != nil {
+		return nil, err
+	}
+
+	res := []RosterEvent{
+		InactivatedPlayerOnRoster{
+			TeamID:      rv.TeamID,
+			PlayerID:    id,
+			EffectiveAt: effectiveAt,
+		},
+	}
+
+	return res, nil
+}
+
 // Apply applies a roster domain event to the view.
 //
 // Events whose postconditions already hold are treated as no-ops.
@@ -124,6 +142,8 @@ func (rv *RosterView) Apply(event RosterEvent) {
 		rv.removePlayer(ev.PlayerID)
 	case ActivatedPlayerOnRoster:
 		rv.activatePlayer(ev.PlayerID, ev.PlayerRole)
+	case InactivatedPlayerOnRoster:
+		rv.inactivatePlayer(ev.PlayerID)
 	default:
 		panic(fmt.Errorf("%w: %T", ErrUnrecognizedRosterEvent, event))
 	}
@@ -196,6 +216,31 @@ func (rv RosterView) validateActivatePlayer(id PlayerID, role PlayerRole) error 
 	return nil
 }
 
+func (rv RosterView) validateInactivatePlayer(id PlayerID) error {
+	var onRoster bool
+	for _, e := range rv.Entries {
+		if e.PlayerID == id {
+			switch e.RosterStatus {
+			case StatusInactive:
+				return ErrPlayerAlreadyInactive
+			case StatusActiveHitter:
+			case StatusActivePitcher:
+			default:
+				return ErrUnrecognizedRosterStatus
+			}
+
+			onRoster = true
+			break
+		}
+	}
+
+	if !onRoster {
+		return ErrPlayerNotOnRoster
+	}
+
+	return nil
+}
+
 func (rv *RosterView) addPlayer(id PlayerID) {
 	if rv.PlayerOnRoster(id) {
 		panic(fmt.Errorf("%w: player ID %v", ErrPlayerAlreadyOnRoster, id))
@@ -238,9 +283,31 @@ func (rv *RosterView) activatePlayer(id PlayerID, role PlayerRole) {
 		default:
 			panic(fmt.Errorf("%w: %s", ErrUnrecognizedPlayerRole, role))
 		}
-
 		return
 	}
 
 	panic(fmt.Errorf("%w: player ID %v", ErrPlayerNotOnRoster, id))
+}
+
+func (rv *RosterView) inactivatePlayer(id PlayerID) {
+	for i, e := range rv.Entries {
+		if e.PlayerID != id {
+			continue
+		}
+
+		switch e.RosterStatus {
+		case StatusActiveHitter:
+			rv.Entries[i].RosterStatus = StatusInactive
+		case StatusActivePitcher:
+			rv.Entries[i].RosterStatus = StatusInactive
+		case StatusInactive:
+			return
+		default:
+			panic(fmt.Errorf("%w: %v", ErrUnrecognizedRosterStatus, e.RosterStatus))
+		}
+
+		return
+	}
+
+	panic(fmt.Errorf("%w: playerID %v", ErrPlayerNotOnRoster, id))
 }

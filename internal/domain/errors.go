@@ -7,6 +7,7 @@ var (
 	ErrActivePitchersFull       = errors.New("roster already has the maximum active pitchers")
 	ErrEventOutsideViewWindow   = errors.New("event is outside view effective window")
 	ErrPlayerAlreadyActive      = errors.New("player already activated")
+	ErrPlayerAlreadyInactive    = errors.New("player already inactivated")
 	ErrPlayerAlreadyOnRoster    = errors.New("player already on roster")
 	ErrRosterFull               = errors.New("roster is already full")
 	ErrPlayerNotOnRoster        = errors.New("player is not on the roster")
