@@ -10,18 +10,19 @@ import (
 )
 
 type RosterStream struct {
-	TeamID         domain.TeamID
-	RecordedEvents []RecordedRosterEvent
+	TeamID    domain.TeamID
+	Committed []RecordedRosterEvent
+	Pending   []domain.RosterEvent
 }
 
-func (rs *RosterStream) Append(events ...RecordedRosterEvent) error {
+func (rs *RosterStream) Stage(events ...domain.RosterEvent) error {
 	for _, re := range events {
-		if re.Event.Team() != rs.TeamID {
-			return fmt.Errorf("%w: event team %v, roster team %v", domain.ErrWrongTeamID, re.Event.Team(), rs.TeamID)
+		if re.Team() != rs.TeamID {
+			return fmt.Errorf("%w: event team %v, roster team %v", domain.ErrWrongTeamID, re.Team(), rs.TeamID)
 		}
 	}
 
-	rs.RecordedEvents = append(rs.RecordedEvents, events...)
+	rs.Pending = append(rs.Pending, events...)
 
 	return nil
 }
@@ -32,27 +33,23 @@ func (rs RosterStream) ProjectThrough(through time.Time) domain.RosterView {
 		EffectiveThrough: through,
 	}
 
-	includedEvents := rs.filterAndSortHistory(through)
-	for _, ev := range includedEvents {
-		rv.Apply(ev.Event)
-	}
+	sortedCommitted := orderEventsByUniqueSequence(rs.Committed)
+
+	applyThrough(&rv, through, extractEvents(sortedCommitted))
+	applyThrough(&rv, through, rs.Pending)
 
 	return rv
 }
 
-func (rs RosterStream) filterAndSortHistory(through time.Time) []RecordedRosterEvent {
-	res := []RecordedRosterEvent{}
+func orderEventsByUniqueSequence(recordedEvents []RecordedRosterEvent) []RecordedRosterEvent {
+	assertUniqueSequences(recordedEvents)
 
-	for _, ev := range rs.RecordedEvents {
-		if ev.Event.OccurredAt().After(through) {
-			continue
-		}
+	return sortBySequence(recordedEvents)
+}
 
-		res = append(res, ev)
-	}
-
-	seen := make(map[int64]struct{}, len(res))
-	for _, ev := range res {
+func assertUniqueSequences(recordedEvents []RecordedRosterEvent) {
+	seen := make(map[int64]struct{}, len(recordedEvents))
+	for _, ev := range recordedEvents {
 		if _, ok := seen[ev.Sequence]; !ok {
 			seen[ev.Sequence] = struct{}{}
 			continue
@@ -60,10 +57,33 @@ func (rs RosterStream) filterAndSortHistory(through time.Time) []RecordedRosterE
 
 		panic(fmt.Errorf("%w: %v", ErrDuplicateRecordedEventSequence, ev.Sequence))
 	}
+}
 
-	slices.SortFunc(res, func(a, b RecordedRosterEvent) int {
+func sortBySequence(recordedEvents []RecordedRosterEvent) []RecordedRosterEvent {
+	sorted := make([]RecordedRosterEvent, len(recordedEvents))
+	copy(sorted, recordedEvents)
+	slices.SortFunc(sorted, func(a, b RecordedRosterEvent) int {
 		return cmp.Compare(a.Sequence, b.Sequence)
 	})
 
-	return res
+	return sorted
+}
+
+func extractEvents(recordedEvents []RecordedRosterEvent) []domain.RosterEvent {
+	extracted := make([]domain.RosterEvent, len(recordedEvents))
+	for i, re := range recordedEvents {
+		extracted[i] = re.Event
+	}
+
+	return extracted
+}
+
+func applyThrough(rv *domain.RosterView, through time.Time, events []domain.RosterEvent) {
+	for _, ev := range events {
+		if ev.OccurredAt().After(through) {
+			continue
+		}
+
+		rv.Apply(ev)
+	}
 }

@@ -12,139 +12,46 @@ import (
 	"github.com/spcameron/dugout/internal/usecase/roster"
 )
 
-func TestAppend(t *testing.T) {
+func TestStage(t *testing.T) {
 	testCases := []struct {
-		name       string
-		currEvents []roster.RecordedRosterEvent
-		newEvents  []roster.RecordedRosterEvent
-		wantErr    error
+		name            string
+		committedEvents []roster.RecordedRosterEvent
+		newEvents       []domain.RosterEvent
+		wantErr         error
 	}{
 		{
-			name:       "add one event to empty history",
-			currEvents: nil,
-			newEvents: []roster.RecordedRosterEvent{
-				{
-					Sequence: 1,
-					Event: domain.AddedPlayerToRoster{
-						TeamID:      testkit.TeamA(),
-						PlayerID:    1,
-						EffectiveAt: testkit.TodayLock(),
-					},
+			name:            "add one event to empty pending events",
+			committedEvents: nil,
+			newEvents: []domain.RosterEvent{
+				domain.AddedPlayerToRoster{
+					TeamID:      testkit.TeamA(),
+					PlayerID:    1,
+					EffectiveAt: testkit.TodayLock(),
 				},
 			},
 			wantErr: nil,
 		},
 		{
-			name:       "add multiple events to empty history",
-			currEvents: nil,
-			newEvents: []roster.RecordedRosterEvent{
-				{
-					Sequence: 1,
-					Event: domain.AddedPlayerToRoster{
-						TeamID:      testkit.TeamA(),
-						PlayerID:    1,
-						EffectiveAt: testkit.TodayLock(),
-					},
+			name:            "add multiple events to empty pending events",
+			committedEvents: nil,
+			newEvents: []domain.RosterEvent{
+				domain.AddedPlayerToRoster{
+					TeamID:      testkit.TeamA(),
+					PlayerID:    1,
+					EffectiveAt: testkit.TodayLock(),
 				},
-				{
-					Sequence: 2,
-					Event: domain.AddedPlayerToRoster{
-						TeamID:      testkit.TeamA(),
-						PlayerID:    2,
-						EffectiveAt: testkit.TodayLock(),
-					},
-				},
-				{
-					Sequence: 3,
-					Event: domain.ActivatedPlayerOnRoster{
-						TeamID:      testkit.TeamA(),
-						PlayerID:    1,
-						PlayerRole:  domain.RoleHitter,
-						EffectiveAt: testkit.TodayLock(),
-					},
-				},
-				{
-					Sequence: 4,
-					Event: domain.ActivatedPlayerOnRoster{
-						TeamID:      testkit.TeamA(),
-						PlayerID:    2,
-						PlayerRole:  domain.RolePitcher,
-						EffectiveAt: testkit.TodayLock(),
-					},
+				domain.ActivatedPlayerOnRoster{
+					TeamID:      testkit.TeamA(),
+					PlayerID:    1,
+					PlayerRole:  domain.RoleHitter,
+					EffectiveAt: testkit.TodayLock(),
 				},
 			},
 			wantErr: nil,
 		},
 		{
-			name: "add one event to existing history",
-			currEvents: []roster.RecordedRosterEvent{
-				{
-					Sequence: 1,
-					Event: domain.AddedPlayerToRoster{
-						TeamID:      testkit.TeamA(),
-						PlayerID:    1,
-						EffectiveAt: testkit.TodayLock(),
-					},
-				},
-			},
-			newEvents: []roster.RecordedRosterEvent{
-				{
-					Sequence: 2,
-					Event: domain.ActivatedPlayerOnRoster{
-						TeamID:      testkit.TeamA(),
-						PlayerID:    1,
-						PlayerRole:  domain.RoleHitter,
-						EffectiveAt: testkit.TodayLock(),
-					},
-				},
-			},
-			wantErr: nil,
-		},
-		{
-			name: "add multiple event to existing history",
-			currEvents: []roster.RecordedRosterEvent{
-				{
-					Sequence: 1,
-					Event: domain.AddedPlayerToRoster{
-						TeamID:      testkit.TeamA(),
-						PlayerID:    1,
-						EffectiveAt: testkit.TodayLock(),
-					},
-				},
-				{
-					Sequence: 2,
-					Event: domain.ActivatedPlayerOnRoster{
-						TeamID:      testkit.TeamA(),
-						PlayerID:    1,
-						PlayerRole:  domain.RoleHitter,
-						EffectiveAt: testkit.TodayLock(),
-					},
-				},
-			},
-			newEvents: []roster.RecordedRosterEvent{
-				{
-					Sequence: 3,
-					Event: domain.AddedPlayerToRoster{
-						TeamID:      testkit.TeamA(),
-						PlayerID:    2,
-						EffectiveAt: testkit.TodayLock(),
-					},
-				},
-				{
-					Sequence: 4,
-					Event: domain.ActivatedPlayerOnRoster{
-						TeamID:      testkit.TeamA(),
-						PlayerID:    2,
-						PlayerRole:  domain.RolePitcher,
-						EffectiveAt: testkit.TodayLock(),
-					},
-				},
-			},
-			wantErr: nil,
-		},
-		{
-			name: "no-op does not change state",
-			currEvents: []roster.RecordedRosterEvent{
+			name: "no-op leaves pending unchanged",
+			committedEvents: []roster.RecordedRosterEvent{
 				{
 					Sequence: 1,
 					Event: domain.AddedPlayerToRoster{
@@ -159,7 +66,7 @@ func TestAppend(t *testing.T) {
 		},
 		{
 			name: "mismatched TeamID errors and does not mutate",
-			currEvents: []roster.RecordedRosterEvent{
+			committedEvents: []roster.RecordedRosterEvent{
 				{
 					Sequence: 1,
 					Event: domain.AddedPlayerToRoster{
@@ -169,14 +76,11 @@ func TestAppend(t *testing.T) {
 					},
 				},
 			},
-			newEvents: []roster.RecordedRosterEvent{
-				{
-					Sequence: 2,
-					Event: domain.AddedPlayerToRoster{
-						TeamID:      testkit.TeamB(),
-						PlayerID:    2,
-						EffectiveAt: testkit.TodayLock(),
-					},
+			newEvents: []domain.RosterEvent{
+				domain.AddedPlayerToRoster{
+					TeamID:      testkit.TeamB(),
+					PlayerID:    2,
+					EffectiveAt: testkit.TodayLock(),
 				},
 			},
 			wantErr: domain.ErrWrongTeamID,
@@ -186,30 +90,25 @@ func TestAppend(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			rs := roster.RosterStream{
-				TeamID:         testkit.TeamA(),
-				RecordedEvents: tc.currEvents,
+				TeamID:    testkit.TeamA(),
+				Committed: tc.committedEvents,
 			}
 
-			startingLength := len(rs.RecordedEvents)
+			startingCommittedLength := len(rs.Committed)
+			startingPendingLength := len(rs.Pending)
 
-			var startingLastEvent roster.RecordedRosterEvent
-			if startingLength > 0 {
-				startingLastEvent = rs.RecordedEvents[startingLength-1]
-			}
-
-			err := rs.Append(tc.newEvents...)
+			err := rs.Stage(tc.newEvents...)
 
 			if tc.wantErr == nil {
 				assert.NoError(t, err)
-				assert.Equal(t, len(rs.RecordedEvents), startingLength+len(tc.newEvents))
+				assert.Equal(t, len(rs.Pending), startingPendingLength+len(tc.newEvents))
+				assert.Equal(t, rs.Pending[startingPendingLength:], tc.newEvents)
 			} else {
 				assert.ErrorIs(t, err, tc.wantErr)
-				assert.Equal(t, len(rs.RecordedEvents), startingLength)
+				assert.Equal(t, len(rs.Pending), startingPendingLength)
 			}
 
-			if startingLength > 0 {
-				assert.Equal(t, rs.RecordedEvents[startingLength-1], startingLastEvent)
-			}
+			assert.Equal(t, len(rs.Committed), startingCommittedLength)
 		})
 	}
 }
@@ -219,39 +118,24 @@ func TestProjectThrough(t *testing.T) {
 		name             string
 		teamID           domain.TeamID
 		effectiveThrough time.Time
-		events           []roster.RecordedRosterEvent
+		committedEvents  []roster.RecordedRosterEvent
+		pendingEvents    []domain.RosterEvent
 		wantOnRoster     []domain.PlayerID
 		wantOffRoster    []domain.PlayerID
 	}{
 		{
-			name:             "empty history projects to empty view",
+			name:             "empty committed and empty pending projects to empty view",
 			teamID:           testkit.TeamA(),
 			effectiveThrough: testkit.TodayLock(),
-			events:           nil,
+			committedEvents:  nil,
+			pendingEvents:    nil,
 			wantOnRoster:     nil,
 		},
 		{
-			name:             "one event within window projects to view",
+			name:             "committed events are filtered by effectiveThrough cutoff time",
 			teamID:           testkit.TeamA(),
 			effectiveThrough: testkit.TodayLock(),
-			events: []roster.RecordedRosterEvent{
-				{
-					Sequence: 1,
-					Event: domain.AddedPlayerToRoster{
-						TeamID:      testkit.TeamA(),
-						PlayerID:    1,
-						EffectiveAt: testkit.TodayLock(),
-					},
-				},
-			},
-			wantOnRoster:  []domain.PlayerID{1},
-			wantOffRoster: []domain.PlayerID{2},
-		},
-		{
-			name:             "second event outside of window is excluded",
-			teamID:           testkit.TeamA(),
-			effectiveThrough: testkit.TodayLock(),
-			events: []roster.RecordedRosterEvent{
+			committedEvents: []roster.RecordedRosterEvent{
 				{
 					Sequence: 1,
 					Event: domain.AddedPlayerToRoster{
@@ -273,43 +157,10 @@ func TestProjectThrough(t *testing.T) {
 			wantOffRoster: []domain.PlayerID{2},
 		},
 		{
-			name:             "future event in between two past events is not included in view",
+			name:             "committed events are applied in sequence order, not input order",
 			teamID:           testkit.TeamA(),
 			effectiveThrough: testkit.TodayLock(),
-			events: []roster.RecordedRosterEvent{
-				{
-					Sequence: 1,
-					Event: domain.AddedPlayerToRoster{
-						TeamID:      testkit.TeamA(),
-						PlayerID:    1,
-						EffectiveAt: testkit.TodayLock(),
-					},
-				},
-				{
-					Sequence: 2,
-					Event: domain.AddedPlayerToRoster{
-						TeamID:      testkit.TeamA(),
-						PlayerID:    2,
-						EffectiveAt: testkit.TomorrowLock(),
-					},
-				},
-				{
-					Sequence: 3,
-					Event: domain.AddedPlayerToRoster{
-						TeamID:      testkit.TeamA(),
-						PlayerID:    3,
-						EffectiveAt: testkit.TodayLock(),
-					},
-				},
-			},
-			wantOnRoster:  []domain.PlayerID{1, 3},
-			wantOffRoster: []domain.PlayerID{2},
-		},
-		{
-			name:             "applies event in sequence order, not input order",
-			teamID:           testkit.TeamA(),
-			effectiveThrough: testkit.TodayLock(),
-			events: []roster.RecordedRosterEvent{
+			committedEvents: []roster.RecordedRosterEvent{
 				{
 					Sequence: 2,
 					Event: domain.RemovedPlayerFromRoster{
@@ -331,10 +182,67 @@ func TestProjectThrough(t *testing.T) {
 			wantOffRoster: []domain.PlayerID{1},
 		},
 		{
-			name:             "filtering events by time happens independent of sorting",
+			name:             "pending events are filtered by effectiveThrough cutoff time",
 			teamID:           testkit.TeamA(),
 			effectiveThrough: testkit.TodayLock(),
-			events: []roster.RecordedRosterEvent{
+			pendingEvents: []domain.RosterEvent{
+				domain.AddedPlayerToRoster{
+					TeamID:      testkit.TeamA(),
+					PlayerID:    1,
+					EffectiveAt: testkit.TodayLock(),
+				},
+				domain.AddedPlayerToRoster{
+					TeamID:      testkit.TeamA(),
+					PlayerID:    2,
+					EffectiveAt: testkit.TomorrowLock(),
+				},
+			},
+			wantOnRoster:  []domain.PlayerID{1},
+			wantOffRoster: []domain.PlayerID{2},
+		},
+		{
+			name:             "pending preserves staging order (add then remove)",
+			teamID:           testkit.TeamA(),
+			effectiveThrough: testkit.TodayLock(),
+			pendingEvents: []domain.RosterEvent{
+				domain.AddedPlayerToRoster{
+					TeamID:      testkit.TeamA(),
+					PlayerID:    1,
+					EffectiveAt: testkit.TodayLock(),
+				},
+				domain.RemovedPlayerFromRoster{
+					TeamID:      testkit.TeamA(),
+					PlayerID:    1,
+					EffectiveAt: testkit.TodayLock(),
+				},
+			},
+			wantOnRoster:  nil,
+			wantOffRoster: []domain.PlayerID{1},
+		},
+		{
+			name:             "pending preserves staging order (remove then add)",
+			teamID:           testkit.TeamA(),
+			effectiveThrough: testkit.TodayLock(),
+			pendingEvents: []domain.RosterEvent{
+				domain.RemovedPlayerFromRoster{
+					TeamID:      testkit.TeamA(),
+					PlayerID:    1,
+					EffectiveAt: testkit.TodayLock(),
+				},
+				domain.AddedPlayerToRoster{
+					TeamID:      testkit.TeamA(),
+					PlayerID:    1,
+					EffectiveAt: testkit.TodayLock(),
+				},
+			},
+			wantOnRoster:  []domain.PlayerID{1},
+			wantOffRoster: nil,
+		},
+		{
+			name:             "committed is always applied before pending",
+			teamID:           testkit.TeamA(),
+			effectiveThrough: testkit.TodayLock(),
+			committedEvents: []roster.RecordedRosterEvent{
 				{
 					Sequence: 1,
 					Event: domain.AddedPlayerToRoster{
@@ -345,32 +253,42 @@ func TestProjectThrough(t *testing.T) {
 				},
 				{
 					Sequence: 2,
-					Event: domain.RemovedPlayerFromRoster{
+					Event: domain.AddedPlayerToRoster{
 						TeamID:      testkit.TeamA(),
-						PlayerID:    1,
-						EffectiveAt: testkit.TomorrowLock(),
+						PlayerID:    2,
+						EffectiveAt: testkit.TodayLock(),
 					},
 				},
 			},
-			wantOnRoster:  []domain.PlayerID{1},
-			wantOffRoster: nil,
+			pendingEvents: []domain.RosterEvent{
+				domain.RemovedPlayerFromRoster{
+					TeamID:      testkit.TeamA(),
+					PlayerID:    1,
+					EffectiveAt: testkit.TodayLock(),
+				},
+			},
+			wantOnRoster:  []domain.PlayerID{2},
+			wantOffRoster: []domain.PlayerID{1},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			rs := roster.RosterStream{
-				TeamID:         tc.teamID,
-				RecordedEvents: tc.events,
+				TeamID:    tc.teamID,
+				Committed: tc.committedEvents,
+				Pending:   tc.pendingEvents,
 			}
 
-			startingHistory := slices.Clone(tc.events)
+			startingCommittedEvents := slices.Clone(tc.committedEvents)
+			startingPendingEvents := slices.Clone(tc.pendingEvents)
 
 			rv := rs.ProjectThrough(tc.effectiveThrough)
 
 			assert.Equal(t, rv.TeamID, rs.TeamID)
 			assert.Equal(t, rv.EffectiveThrough, tc.effectiveThrough)
-			assert.Equal(t, rs.RecordedEvents, startingHistory)
+			assert.Equal(t, rs.Committed, startingCommittedEvents)
+			assert.Equal(t, rs.Pending, startingPendingEvents)
 
 			for _, id := range tc.wantOnRoster {
 				assert.True(t, rv.PlayerOnRoster(id))
@@ -389,30 +307,6 @@ func TestProjectThrough(t *testing.T) {
 		events           []roster.RecordedRosterEvent
 		wantErr          error
 	}{
-		{
-			name:             "panics if event TeamID does not match roster stream TeamID",
-			teamID:           testkit.TeamA(),
-			effectiveThrough: testkit.TodayLock(),
-			events: []roster.RecordedRosterEvent{
-				{
-					Sequence: 1,
-					Event: domain.AddedPlayerToRoster{
-						TeamID:      testkit.TeamA(),
-						PlayerID:    1,
-						EffectiveAt: testkit.TodayLock(),
-					},
-				},
-				{
-					Sequence: 2,
-					Event: domain.AddedPlayerToRoster{
-						TeamID:      testkit.TeamB(),
-						PlayerID:    2,
-						EffectiveAt: testkit.TodayLock(),
-					},
-				},
-			},
-			wantErr: domain.ErrWrongTeamID,
-		},
 		{
 			name:             "panics if two events have the same sequence value",
 			teamID:           testkit.TeamA(),
@@ -442,8 +336,8 @@ func TestProjectThrough(t *testing.T) {
 	for _, tc := range panicCases {
 		t.Run(tc.name, func(t *testing.T) {
 			rs := roster.RosterStream{
-				TeamID:         tc.teamID,
-				RecordedEvents: tc.events,
+				TeamID:    tc.teamID,
+				Committed: tc.events,
 			}
 
 			fn := func() { _ = rs.ProjectThrough(tc.effectiveThrough) }
