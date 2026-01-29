@@ -1,28 +1,28 @@
-package application_test
+package roster_test
 
 import (
 	"slices"
 	"testing"
 	"time"
 
-	"github.com/spcameron/dugout/internal/application"
 	"github.com/spcameron/dugout/internal/domain"
 	"github.com/spcameron/dugout/internal/testsupport/assert"
 	"github.com/spcameron/dugout/internal/testsupport/require"
 	"github.com/spcameron/dugout/internal/testsupport/testkit"
+	"github.com/spcameron/dugout/internal/usecase/roster"
 )
 
 func TestAppend(t *testing.T) {
 	testCases := []struct {
 		name       string
-		currEvents []application.RecordedRosterEvent
-		newEvents  []application.RecordedRosterEvent
+		currEvents []roster.RecordedRosterEvent
+		newEvents  []roster.RecordedRosterEvent
 		wantErr    error
 	}{
 		{
 			name:       "add one event to empty history",
 			currEvents: nil,
-			newEvents: []application.RecordedRosterEvent{
+			newEvents: []roster.RecordedRosterEvent{
 				{
 					Sequence: 1,
 					Event: domain.AddedPlayerToRoster{
@@ -37,7 +37,7 @@ func TestAppend(t *testing.T) {
 		{
 			name:       "add multiple events to empty history",
 			currEvents: nil,
-			newEvents: []application.RecordedRosterEvent{
+			newEvents: []roster.RecordedRosterEvent{
 				{
 					Sequence: 1,
 					Event: domain.AddedPlayerToRoster{
@@ -77,7 +77,7 @@ func TestAppend(t *testing.T) {
 		},
 		{
 			name: "add one event to existing history",
-			currEvents: []application.RecordedRosterEvent{
+			currEvents: []roster.RecordedRosterEvent{
 				{
 					Sequence: 1,
 					Event: domain.AddedPlayerToRoster{
@@ -87,7 +87,7 @@ func TestAppend(t *testing.T) {
 					},
 				},
 			},
-			newEvents: []application.RecordedRosterEvent{
+			newEvents: []roster.RecordedRosterEvent{
 				{
 					Sequence: 2,
 					Event: domain.ActivatedPlayerOnRoster{
@@ -102,7 +102,7 @@ func TestAppend(t *testing.T) {
 		},
 		{
 			name: "add multiple event to existing history",
-			currEvents: []application.RecordedRosterEvent{
+			currEvents: []roster.RecordedRosterEvent{
 				{
 					Sequence: 1,
 					Event: domain.AddedPlayerToRoster{
@@ -121,7 +121,7 @@ func TestAppend(t *testing.T) {
 					},
 				},
 			},
-			newEvents: []application.RecordedRosterEvent{
+			newEvents: []roster.RecordedRosterEvent{
 				{
 					Sequence: 3,
 					Event: domain.AddedPlayerToRoster{
@@ -144,7 +144,7 @@ func TestAppend(t *testing.T) {
 		},
 		{
 			name: "no-op does not change state",
-			currEvents: []application.RecordedRosterEvent{
+			currEvents: []roster.RecordedRosterEvent{
 				{
 					Sequence: 1,
 					Event: domain.AddedPlayerToRoster{
@@ -159,7 +159,7 @@ func TestAppend(t *testing.T) {
 		},
 		{
 			name: "mismatched TeamID errors and does not mutate",
-			currEvents: []application.RecordedRosterEvent{
+			currEvents: []roster.RecordedRosterEvent{
 				{
 					Sequence: 1,
 					Event: domain.AddedPlayerToRoster{
@@ -169,7 +169,7 @@ func TestAppend(t *testing.T) {
 					},
 				},
 			},
-			newEvents: []application.RecordedRosterEvent{
+			newEvents: []roster.RecordedRosterEvent{
 				{
 					Sequence: 2,
 					Event: domain.AddedPlayerToRoster{
@@ -185,14 +185,14 @@ func TestAppend(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			rs := application.RosterStream{
+			rs := roster.RosterStream{
 				TeamID:         testkit.TeamA(),
 				RecordedEvents: tc.currEvents,
 			}
 
 			startingLength := len(rs.RecordedEvents)
 
-			var startingLastEvent application.RecordedRosterEvent
+			var startingLastEvent roster.RecordedRosterEvent
 			if startingLength > 0 {
 				startingLastEvent = rs.RecordedEvents[startingLength-1]
 			}
@@ -219,7 +219,7 @@ func TestProjectThrough(t *testing.T) {
 		name             string
 		teamID           domain.TeamID
 		effectiveThrough time.Time
-		events           []application.RecordedRosterEvent
+		events           []roster.RecordedRosterEvent
 		wantOnRoster     []domain.PlayerID
 		wantOffRoster    []domain.PlayerID
 	}{
@@ -234,7 +234,7 @@ func TestProjectThrough(t *testing.T) {
 			name:             "one event within window projects to view",
 			teamID:           testkit.TeamA(),
 			effectiveThrough: testkit.TodayLock(),
-			events: []application.RecordedRosterEvent{
+			events: []roster.RecordedRosterEvent{
 				{
 					Sequence: 1,
 					Event: domain.AddedPlayerToRoster{
@@ -251,7 +251,7 @@ func TestProjectThrough(t *testing.T) {
 			name:             "second event outside of window is excluded",
 			teamID:           testkit.TeamA(),
 			effectiveThrough: testkit.TodayLock(),
-			events: []application.RecordedRosterEvent{
+			events: []roster.RecordedRosterEvent{
 				{
 					Sequence: 1,
 					Event: domain.AddedPlayerToRoster{
@@ -276,7 +276,7 @@ func TestProjectThrough(t *testing.T) {
 			name:             "future event in between two past events is not included in view",
 			teamID:           testkit.TeamA(),
 			effectiveThrough: testkit.TodayLock(),
-			events: []application.RecordedRosterEvent{
+			events: []roster.RecordedRosterEvent{
 				{
 					Sequence: 1,
 					Event: domain.AddedPlayerToRoster{
@@ -309,7 +309,7 @@ func TestProjectThrough(t *testing.T) {
 			name:             "applies event in sequence order, not input order",
 			teamID:           testkit.TeamA(),
 			effectiveThrough: testkit.TodayLock(),
-			events: []application.RecordedRosterEvent{
+			events: []roster.RecordedRosterEvent{
 				{
 					Sequence: 2,
 					Event: domain.RemovedPlayerFromRoster{
@@ -334,7 +334,7 @@ func TestProjectThrough(t *testing.T) {
 			name:             "filtering events by time happens independent of sorting",
 			teamID:           testkit.TeamA(),
 			effectiveThrough: testkit.TodayLock(),
-			events: []application.RecordedRosterEvent{
+			events: []roster.RecordedRosterEvent{
 				{
 					Sequence: 1,
 					Event: domain.AddedPlayerToRoster{
@@ -359,7 +359,7 @@ func TestProjectThrough(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			rs := application.RosterStream{
+			rs := roster.RosterStream{
 				TeamID:         tc.teamID,
 				RecordedEvents: tc.events,
 			}
@@ -386,14 +386,14 @@ func TestProjectThrough(t *testing.T) {
 		name             string
 		teamID           domain.TeamID
 		effectiveThrough time.Time
-		events           []application.RecordedRosterEvent
+		events           []roster.RecordedRosterEvent
 		wantErr          error
 	}{
 		{
 			name:             "panics if event TeamID does not match roster stream TeamID",
 			teamID:           testkit.TeamA(),
 			effectiveThrough: testkit.TodayLock(),
-			events: []application.RecordedRosterEvent{
+			events: []roster.RecordedRosterEvent{
 				{
 					Sequence: 1,
 					Event: domain.AddedPlayerToRoster{
@@ -417,7 +417,7 @@ func TestProjectThrough(t *testing.T) {
 			name:             "panics if two events have the same sequence value",
 			teamID:           testkit.TeamA(),
 			effectiveThrough: testkit.TodayLock(),
-			events: []application.RecordedRosterEvent{
+			events: []roster.RecordedRosterEvent{
 				{
 					Sequence: 1,
 					Event: domain.AddedPlayerToRoster{
@@ -435,13 +435,13 @@ func TestProjectThrough(t *testing.T) {
 					},
 				},
 			},
-			wantErr: application.ErrDuplicateRecordedEventSequence,
+			wantErr: roster.ErrDuplicateRecordedEventSequence,
 		},
 	}
 
 	for _, tc := range panicCases {
 		t.Run(tc.name, func(t *testing.T) {
-			rs := application.RosterStream{
+			rs := roster.RosterStream{
 				TeamID:         tc.teamID,
 				RecordedEvents: tc.events,
 			}
