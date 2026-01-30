@@ -42,6 +42,13 @@ func (rs RosterStream) ProjectThrough(through time.Time) domain.RosterView {
 	return rv
 }
 
+func NewRosterStream(id domain.TeamID, committed []eventlog.Recorded[domain.RosterEvent]) *RosterStream {
+	return &RosterStream{
+		TeamID:    id,
+		Committed: committed,
+	}
+}
+
 func orderEventsByUniqueSequence(recordedEvents []eventlog.Recorded[domain.RosterEvent]) []eventlog.Recorded[domain.RosterEvent] {
 	assertUniqueSequences(recordedEvents)
 
