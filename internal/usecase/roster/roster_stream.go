@@ -7,11 +7,12 @@ import (
 	"time"
 
 	"github.com/spcameron/dugout/internal/domain"
+	"github.com/spcameron/dugout/internal/eventlog"
 )
 
 type RosterStream struct {
 	TeamID    domain.TeamID
-	Committed []RecordedRosterEvent
+	Committed []eventlog.Recorded[domain.RosterEvent]
 	Pending   []domain.RosterEvent
 }
 
@@ -41,35 +42,42 @@ func (rs RosterStream) ProjectThrough(through time.Time) domain.RosterView {
 	return rv
 }
 
-func orderEventsByUniqueSequence(recordedEvents []RecordedRosterEvent) []RecordedRosterEvent {
+func NewRosterStream(id domain.TeamID, committed []eventlog.Recorded[domain.RosterEvent]) *RosterStream {
+	return &RosterStream{
+		TeamID:    id,
+		Committed: committed,
+	}
+}
+
+func orderEventsByUniqueSequence(recordedEvents []eventlog.Recorded[domain.RosterEvent]) []eventlog.Recorded[domain.RosterEvent] {
 	assertUniqueSequences(recordedEvents)
 
 	return sortBySequence(recordedEvents)
 }
 
-func assertUniqueSequences(recordedEvents []RecordedRosterEvent) {
-	seen := make(map[int64]struct{}, len(recordedEvents))
+func assertUniqueSequences(recordedEvents []eventlog.Recorded[domain.RosterEvent]) {
+	seen := make(map[eventlog.Sequence]struct{}, len(recordedEvents))
 	for _, ev := range recordedEvents {
 		if _, ok := seen[ev.Sequence]; !ok {
 			seen[ev.Sequence] = struct{}{}
 			continue
 		}
 
-		panic(fmt.Errorf("%w: %v", ErrDuplicateRecordedEventSequence, ev.Sequence))
+		panic(fmt.Errorf("%w: %v", eventlog.ErrDuplicateRecordedEventSequence, ev.Sequence))
 	}
 }
 
-func sortBySequence(recordedEvents []RecordedRosterEvent) []RecordedRosterEvent {
-	sorted := make([]RecordedRosterEvent, len(recordedEvents))
+func sortBySequence(recordedEvents []eventlog.Recorded[domain.RosterEvent]) []eventlog.Recorded[domain.RosterEvent] {
+	sorted := make([]eventlog.Recorded[domain.RosterEvent], len(recordedEvents))
 	copy(sorted, recordedEvents)
-	slices.SortFunc(sorted, func(a, b RecordedRosterEvent) int {
+	slices.SortFunc(sorted, func(a, b eventlog.Recorded[domain.RosterEvent]) int {
 		return cmp.Compare(a.Sequence, b.Sequence)
 	})
 
 	return sorted
 }
 
-func extractEvents(recordedEvents []RecordedRosterEvent) []domain.RosterEvent {
+func extractEvents(recordedEvents []eventlog.Recorded[domain.RosterEvent]) []domain.RosterEvent {
 	extracted := make([]domain.RosterEvent, len(recordedEvents))
 	for i, re := range recordedEvents {
 		extracted[i] = re.Event

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/spcameron/dugout/internal/domain"
+	"github.com/spcameron/dugout/internal/eventlog"
 	"github.com/spcameron/dugout/internal/testsupport/assert"
 	"github.com/spcameron/dugout/internal/testsupport/require"
 	"github.com/spcameron/dugout/internal/testsupport/testkit"
@@ -15,7 +16,7 @@ import (
 func TestStage(t *testing.T) {
 	testCases := []struct {
 		name            string
-		committedEvents []roster.RecordedRosterEvent
+		committedEvents []eventlog.Recorded[domain.RosterEvent]
 		newEvents       []domain.RosterEvent
 		wantErr         error
 	}{
@@ -51,7 +52,7 @@ func TestStage(t *testing.T) {
 		},
 		{
 			name: "no-op leaves pending unchanged",
-			committedEvents: []roster.RecordedRosterEvent{
+			committedEvents: []eventlog.Recorded[domain.RosterEvent]{
 				{
 					Sequence: 1,
 					Event: domain.AddedPlayerToRoster{
@@ -66,7 +67,7 @@ func TestStage(t *testing.T) {
 		},
 		{
 			name: "mismatched TeamID errors and does not mutate",
-			committedEvents: []roster.RecordedRosterEvent{
+			committedEvents: []eventlog.Recorded[domain.RosterEvent]{
 				{
 					Sequence: 1,
 					Event: domain.AddedPlayerToRoster{
@@ -118,7 +119,7 @@ func TestProjectThrough(t *testing.T) {
 		name             string
 		teamID           domain.TeamID
 		effectiveThrough time.Time
-		committedEvents  []roster.RecordedRosterEvent
+		committedEvents  []eventlog.Recorded[domain.RosterEvent]
 		pendingEvents    []domain.RosterEvent
 		wantOnRoster     []domain.PlayerID
 		wantOffRoster    []domain.PlayerID
@@ -135,7 +136,7 @@ func TestProjectThrough(t *testing.T) {
 			name:             "committed events are filtered by effectiveThrough cutoff time",
 			teamID:           testkit.TeamA(),
 			effectiveThrough: testkit.TodayLock(),
-			committedEvents: []roster.RecordedRosterEvent{
+			committedEvents: []eventlog.Recorded[domain.RosterEvent]{
 				{
 					Sequence: 1,
 					Event: domain.AddedPlayerToRoster{
@@ -160,7 +161,7 @@ func TestProjectThrough(t *testing.T) {
 			name:             "committed events are applied in sequence order, not input order",
 			teamID:           testkit.TeamA(),
 			effectiveThrough: testkit.TodayLock(),
-			committedEvents: []roster.RecordedRosterEvent{
+			committedEvents: []eventlog.Recorded[domain.RosterEvent]{
 				{
 					Sequence: 2,
 					Event: domain.RemovedPlayerFromRoster{
@@ -242,7 +243,7 @@ func TestProjectThrough(t *testing.T) {
 			name:             "committed is always applied before pending",
 			teamID:           testkit.TeamA(),
 			effectiveThrough: testkit.TodayLock(),
-			committedEvents: []roster.RecordedRosterEvent{
+			committedEvents: []eventlog.Recorded[domain.RosterEvent]{
 				{
 					Sequence: 1,
 					Event: domain.AddedPlayerToRoster{
@@ -304,14 +305,14 @@ func TestProjectThrough(t *testing.T) {
 		name             string
 		teamID           domain.TeamID
 		effectiveThrough time.Time
-		events           []roster.RecordedRosterEvent
+		events           []eventlog.Recorded[domain.RosterEvent]
 		wantErr          error
 	}{
 		{
 			name:             "panics if two events have the same sequence value",
 			teamID:           testkit.TeamA(),
 			effectiveThrough: testkit.TodayLock(),
-			events: []roster.RecordedRosterEvent{
+			events: []eventlog.Recorded[domain.RosterEvent]{
 				{
 					Sequence: 1,
 					Event: domain.AddedPlayerToRoster{
@@ -329,7 +330,7 @@ func TestProjectThrough(t *testing.T) {
 					},
 				},
 			},
-			wantErr: roster.ErrDuplicateRecordedEventSequence,
+			wantErr: eventlog.ErrDuplicateRecordedEventSequence,
 		},
 	}
 
