@@ -17,12 +17,12 @@ type SpyRosterStore struct {
 	}
 }
 
-func (s *SpyRosterStore) Load(id domain.TeamID) (committed []eventlog.Recorded[domain.RosterEvent], version ports.Version, err error) {
+func (s *SpyRosterStore) Load(id domain.TeamID) ([]eventlog.Recorded[domain.RosterEvent], ports.Version, error) {
 	s.LoadCalls = append(s.LoadCalls, id)
 	return s.InnerStore.Load(id)
 }
 
-func (s *SpyRosterStore) Append(id domain.TeamID, newEvents []domain.RosterEvent, expected ports.Version) (newVersion ports.Version, err error) {
+func (s *SpyRosterStore) Append(id domain.TeamID, newEvents []domain.RosterEvent, expected ports.Version) (ports.Version, error) {
 	eventsCopy := append([]domain.RosterEvent(nil), newEvents...)
 	s.AppendCalls = append(s.AppendCalls, struct {
 		TeamID  domain.TeamID

@@ -43,3 +43,10 @@ type AddPlayerCommand struct {
 	TeamID   domain.TeamID
 	PlayerID domain.PlayerID
 }
+
+func NewAddPlayerCommand(teamID domain.TeamID, playerID domain.PlayerID) AddPlayerCommand {
+	return AddPlayerCommand{
+		TeamID:   teamID,
+		PlayerID: playerID,
+	}
+}
