@@ -1,38 +1,61 @@
 # Dugout
-*A Go-based toolkit for managing baseball rosters and stats*
+*A fantasy baseball league engine built in Go*
 
-**Dugout** is a monorepo for a collection of baseball organization management tools and APIs written in Go. It provides a backend service for roster management and player statistics, forming the foundation for future CLI and web interfaces.
+**Dugout** is a server-side application for running fantasy baseball leagues, where user-managed rosters compete using scoring derived from real MLB game statistics.
+
+The project emphasizes explicit domain rules, deterministic behavior, and testability over UI-driven logic.
 
 ---
 
 ## Overview
 
-Dugout will eventually include:
-- **Roster Manager API** -- A REST service for managing organizations, teams, and players.
-- **CLI Tools** -- Local utilities for administrative and data import tasks.
-- **Web Application** -- A user-facing browser interface for interacting with the API.
-- **Shared Packages** -- Common domain models, database code, and testing utilities.
+This repository contains the core Dugout application, including the domain model, application services, HTTP delivery, and persistence required to run a fantasy baseball league end-to-end.
+
+Dugout serves both as an active development project and as a portfolio-qaulity example of domain-driven design, layered architecture, and pragmatic Go engineering, with an emphasis on correctness in a rules-heavy, stateful domain.
+
+---
+
+## Architecture at a Glance
+
+*Dugout* is organized as a single Go module with clear internal boundaries:
+
+- **Domain layer** - Pure domain types, invariants, and state transitions
+- **Application layer** - Use cases that orchestrate domain behavior
+- **Adapters** - HTTP handlers, database persistence, and rendering
+- **Web delivery** - Server-rendered HTML with progressive enhancement
+
+Core domain logic is intentionally isolated from delivery and persistence concerns so that rules can be tested and evolved independently of infrastructure.
+
+While the application exposes HTTP endpoints, it is not positioned as a generic third-party API product. The HTTP surface exists to serve the application itself.
 
 ---
 
 ## Tech Stack
 
-- Language: Go (Golang)
-- Database: PostgreSQL
-- Migrations: Goose
-- Codegen: sqlc
-- Routing: chi
-- Environment: `.env` for configuration
-- Testing: Go test framework
-- Web UI:
-    - htmx
-    - templ
-    - Tailwind CSS
-    - Alpine.js
+**Backend**
+- Go (Golang)
+- PostgreSQL
+- Goose (migrations)
+- sqlc (query generation)
+- chi (routing)
+
+**Web UI (server-rendered)**
+- templ
+- htmx
+- Tailwind CSS
+- Alpine.js
+
+**Tooling**
+- Make (first-class interface)
+- Go test
+- Air (optional live reload)
 
 ---
 
 ## Development Setup
+
+Dugout's development environment reflects production-style concerns such as role-separated database access and migration ownership. While the setup is a little more involved than a typical tutorial project, the setup is deliberate and documented below.
+
 
 ### Prerequisites
 
@@ -206,19 +229,16 @@ This uses `air` to rebuild and restart the application automatically when files 
 
 ## Contributing
 
-We welcome your contributions! To get started:
-- Fork the repository on Github
-- Follow the development and environment setup instructions above
-- Create a feature branch by running `make branch/new`
-- Commit your changes with clear messages
-- Push your branch and open a pull request
+This project is developed and curated by its author. Issues and bug reports are welcome; code contributions are reviewed selectively with an emphasis on architectural consistency.
 
-Please keep PRs focused and concise. Before submitting, run `make audit` and ensure all tests pass.
+Please keep commits and pull requests focused and concise. Before submitting, run `make audit` and ensure all tests pass.
 
 ---
 
 ## License
 
 This project is licensed under the **MIT License.**
+
+The license applies to the source code in this repository. Hosted services, deployments, and derivative applications may be governed separately.
 
 ![CI tests badge](https://github.com/spcameron/dugout/actions/workflows/ci.yml/badge.svg)
