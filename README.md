@@ -9,9 +9,9 @@ The project emphasizes explicit domain rules, deterministic behavior, and testab
 
 ## Overview
 
-This repository contains the core Dugout application, including the domain model, application services, HTTP delivery, and persistence required to run a fantasy baseball league end-to-end.
+This repository contains the core *Dugout* application, including the domain model, application services, HTTP delivery, and persistence required to run a fantasy baseball league end-to-end.
 
-Dugout serves both as an active development project and as a portfolio-qaulity example of domain-driven design, layered architecture, and pragmatic Go engineering, with an emphasis on correctness in a rules-heavy, stateful domain.
+*Dugout* serves both as an active development project and as a portfolio-quality example of domain-driven design, layered architecture, and pragmatic Go engineering, with an emphasis on correctness in a rules-heavy, stateful domain.
 
 ---
 
@@ -22,7 +22,7 @@ Dugout serves both as an active development project and as a portfolio-qaulity e
 - **Domain layer** - Pure domain types, invariants, and state transitions
 - **Application layer** - Use cases that orchestrate domain behavior
 - **Adapters** - HTTP handlers, database persistence, and rendering
-- **Web delivery** - Server-rendered HTML with progressive enhancement
+- **Web delivery** - Server-rendered HTML with lightweight client-side enhancements
 
 Core domain logic is intentionally isolated from delivery and persistence concerns so that rules can be tested and evolved independently of infrastructure.
 
@@ -54,7 +54,7 @@ While the application exposes HTTP endpoints, it is not positioned as a generic 
 
 ## Development Setup
 
-Dugout's development environment reflects production-style concerns such as role-separated database access and migration ownership. While the setup is a little more involved than a typical tutorial project, the setup is deliberate and documented below.
+*Dugout's* development environment reflects production-style concerns such as role-separated database access and migration ownership. While the setup is a little more involved than a typical tutorial project, the setup is deliberate and documented below.
 
 
 ### Prerequisites
@@ -229,7 +229,7 @@ This uses `air` to rebuild and restart the application automatically when files 
 
 ## Contributing
 
-This project is developed and curated by its author. Issues and bug reports are welcome; code contributions are reviewed selectively with an emphasis on architectural consistency.
+This project is developed and curated by its author. Issues and bug reports are welcome. Code contributions are reviewed selectively with an emphasis on architectural consistency.
 
 Please keep commits and pull requests focused and concise. Before submitting, run `make audit` and ensure all tests pass.
 

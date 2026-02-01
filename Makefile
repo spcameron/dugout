@@ -445,6 +445,8 @@ push/u: on-feature require-clean
 	@branch="$$(git rev-parse --abbrev-ref HEAD)"; \
 	$(call log_info,Pushing '$$branch' and setting upstream to origin...); \
 	git push -u origin "$$branch"
+	@$(call log_ok,... complete.)
+	@echo
 	
 ## pr/create: create a GitHub PR for the current branch
 .PHONY: pr/create
