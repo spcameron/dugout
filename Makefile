@@ -49,13 +49,13 @@ endef
 ## -------
 # ==================================================================================== #
 
-## help: print this help message
+## help: print this help message -- OK
 .PHONY: help
 help:
 	@echo "Usage:"
 	@sed -n 's/^##//p' $(MAKEFILE_LIST) | column -t -s ':' | sed -e 's/^/ /'
 
-## confirm: prompt before running a destructive action
+## confirm: prompt before running a destructive action -- OK
 .PHONY: confirm
 confirm:
 	@$(call log_warn,Are you sure? [y/N])
@@ -87,13 +87,13 @@ env/check:
 ## ---------------
 # ==================================================================================== #
 
-## audit: run quality control checks
+## audit: run quality control checks -- OK
 .PHONY: audit
 audit: fmt-check mod-tidy-check mod-verify vet staticcheck vulncheck test/race
 	@$(call log_ok,Audit complete.)
 	@echo
 
-## fmt-check: fail if gofmt would make changes (reports files)
+## fmt-check: fail if gofmt would make changes (reports files) -- OK
 .PHONY: fmt-check
 fmt-check:
 	@$(call log_info,Running gofmt check...)

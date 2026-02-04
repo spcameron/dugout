@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# shellcheck shell=bash
+#
+# scripts/confirm
+#
+# Optional:
+#   FORCE=1  # intentional bypass
+
+[[ "${FORCE:-}" == "1" ]] && exit 0
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/lib.sh"
+
+warn "Are you sure? [y/n]"
+
+printf '>>> ' >&2
+if ! read -r ans; then
+  exit 1
+fi
+
+[[ "$ans" == y ]]

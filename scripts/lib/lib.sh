@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 #
+# scripts/lib/lib.sh
+#
 # Lightweight logging & guard helpers for project scripts.
 # Safe under: set -euo pipefail
 #
 # Usage:
-#   source scripts/lib/log.sh
+#   source scripts/lib/lib.sh
 #   need_cmd git
 #   require_file .env "Create .env from .env.example"
 #   run go test ./...
@@ -15,7 +17,7 @@
 #   NO_COLOR=1   # disable ANSI color even when TTY
 
 # ==================================================================================== #
-# COLORS
+# LOGGING & ANSI OUTPUT
 # ==================================================================================== #
 
 if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
@@ -33,38 +35,52 @@ else
 fi
 
 _ts() {
-  [[ -n "${LOG_TS:-}" ]] && date +"%H:%M:%S"
+  if [[ -n "${LOG_TS:-}" ]]; then
+    date +"%H:%M:%S"
+  fi
+  return 0
 }
 
 _prefix() {
   local t
   t="$(_ts)"
-  [[ -n "$t" ]] && printf '[%s] ' "$t"
+  if [[ -n "$t" ]]; then
+    printf '[%s] ' "$t"
+  fi
+  return 0
 }
 
 info() {
-  echo "${BLUE}$(_prefix)${RESET}$*"
+  printf '%s' "${BLUE}"
+  _prefix
+  printf '→ %s%s\n' "$*" "${RESET}"
 }
 
 ok() {
-  echo "${GREEN}$(_prefix)✓ ${RESET}$*"
+  printf '%s' "${GREEN}"
+  _prefix
+  printf '✓ %s%s\n' "$*" "${RESET}"
 }
 
 warn() {
-  echo "${YELLOW}$(_prefix)! ${RESET}$*"
+  printf '%s' "${YELLOW}"
+  _prefix
+  printf '! %s%s\n' "$*" "${RESET}"
 }
 
 err() {
-  echo "${RED}$(_prefix)✗ ${RESET}$*" >&2
+  printf '%s' "${RED}" >&2
+  _prefix >&2
+  printf '✗ %s%s\n' "$*" "${RESET}" >&2
 }
 
 die() {
-  err "$*"
+  err "$@"
   exit 1
 }
 
 # ==================================================================================== #
-# GUARDS
+# GUARDS & HELPERS
 # ==================================================================================== #
 
 need_cmd() { command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1"; }
@@ -91,6 +107,19 @@ require_env() {
   local msg="${2:-Expected environment variable not set: $var}"
 
   [[ -n "${!var:-}" ]] || die "$msg"
+}
+
+load_env_file() {
+  # Usage: load_env_file ".env"
+  local path="${1:?env file path required}"
+  require_file "$path" "Refusing: $path not found. Create it (or copy from .env.example)."
+
+  # Export all variables defined by sourcing the file.
+  # Assumes env file is trusted and in KEY=VALUE form.
+  set -a
+  # shellcheck disable=SC1090
+  source "$path"
+  set +a
 }
 
 # ==================================================================================== #
