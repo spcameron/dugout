@@ -106,7 +106,7 @@ fmt-check:
 	@$(call log_ok,... complete.)
 	@echo
 
-## mod-tidy-check: fail if go.mod/go.sum are not tidy
+## mod-tidy-check: fail if go.mod/go.sum are not tidy -- OK
 .PHONY: mod-tidy-check
 mod-tidy-check:
 	@$(call log_info,Running tidy check...)
@@ -114,7 +114,7 @@ mod-tidy-check:
 	@$(call log_ok,... complete.)
 	@echo
 
-## mod-verify: fail if module dependencies cannot be verified
+## mod-verify: fail if module dependencies cannot be verified -- OK
 .PHONY: mod-verify
 mod-verify:
 	@$(call log_info,Running mod verify...)
@@ -122,7 +122,7 @@ mod-verify:
 	@$(call log_ok,... complete.)
 	@echo
 
-## vet: run go vet
+## vet: run go vet -- OK
 .PHONY: vet
 vet:
 	@$(call log_info,Running go vet...)
@@ -130,7 +130,7 @@ vet:
 	@$(call log_ok,... complete.)
 	@echo
 	
-## staticcheck: run staticcheck
+## staticcheck: run staticcheck -- OK
 .PHONY: staticcheck
 staticcheck:
 	@$(call log_info,Running staticcheck...)
@@ -138,7 +138,7 @@ staticcheck:
 	@$(call log_ok,... complete.)
 	@echo
 	
-## vulncheck: run govulncheck
+## vulncheck: run govulncheck -- OK
 .PHONY: vulncheck
 vulncheck:
 	@$(call log_info,Running vulncheck...)
@@ -146,7 +146,7 @@ vulncheck:
 	@$(call log_ok,... complete.)
 	@echo
 	
-## test: run tests
+## test: run tests -- OK
 .PHONY: test
 test:
 	@$(call log_info,Running tests...)
@@ -154,7 +154,7 @@ test:
 	@$(call log_ok,... complete.)
 	@echo
 	
-## test/race: run tests with race detector
+## test/race: run tests with race detector -- OK
 .PHONY: test/race
 test/race:
 	@$(call log_info,Running tests with race detector...)
@@ -162,7 +162,7 @@ test/race:
 	@$(call log_ok,... complete.)
 	@echo
 	
-## test/cover: run all tests and display coverage
+## test/cover: run all tests and display coverage -- OK
 .PHONY: test/cover
 test/cover:
 	@$(call log_info,Running tests and displaying coverage...)
@@ -171,6 +171,7 @@ test/cover:
 	@$(call log_ok,... complete.)
 	@echo
 	
+## TODO:
 ## test/integration: run integration tests against migrated test DB
 .PHONY: test/integration
 test/integration: env/check db/test/migrate/up
@@ -180,7 +181,7 @@ test/integration: env/check db/test/migrate/up
 	@$(call log_ok,... complete.)
 	@echo
 	
-## upgradeable: list direct dependencies that have upgrades available
+## upgradeable: list direct dependencies that have upgrades available -- OK
 .PHONY: upgradeable
 upgradeable:
 	@go run github.com/oligot/go-mod-upgrade@latest
@@ -195,13 +196,13 @@ upgradeable:
 staticcheck_version  ?= v0.6.0
 govulncheck_version  ?= v1.1.4
 
-## ci: reproducible, pinned quality gate for GitHub Actions
+## ci: reproducible, pinned quality gate for GitHub Actions -- OK
 .PHONY: ci
 ci: fmt-check mod-tidy-check mod-verify vet ci/staticcheck ci/vulncheck test
 	@$(call log_ok,CI check complete.)
 	@echo
 
-## ci/staticcheck: run staticcheck (pinned)
+## ci/staticcheck: run staticcheck (pinned) -- OK
 .PHONY: ci/staticcheck
 ci/staticcheck:
 	@$(call log_info,Running staticcheck...)
@@ -209,7 +210,7 @@ ci/staticcheck:
 	@$(call log_ok,... complete.)
 	@echo
 
-## ci/vulncheck: run govulncheck (pinned)
+## ci/vulncheck: run govulncheck (pinned) -- OK
 .PHONY: ci/vulncheck
 ci/vulncheck:
 	@$(call log_info,Running vulncheck...)
@@ -223,12 +224,12 @@ ci/vulncheck:
 ## -----------
 # ==================================================================================== #
 
-## tidy: tidy modfiles and format .go files
+## tidy: tidy modfiles and format .go files -- OK
 .PHONY: tidy
 tidy:
 	@$(call log_info,Running tidy...)
 	@go mod tidy -v
-	@go fmt ./...
+	@gofmt ./...
 	@$(call log_ok,... complete.)
 	@echo
 	
