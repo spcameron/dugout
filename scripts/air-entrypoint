@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 #
-# scripts/mod-upgrade
+# scripts/air-entrypoint
 
 set -euo pipefail
 
@@ -11,11 +11,5 @@ source "$ROOT_DIR/scripts/lib/lib.sh"
 source "$ROOT_DIR/scripts/lib/project.sh"
 source "$ROOT_DIR/scripts/lib/paths.sh"
 
-need_cmd go-mod-upgrade
-
-info "Running go-mod-upgrade..."
-
-go-mod-upgrade
-
-ok "... report complete."
-# printf '\n'
+require_file "$BIN_PATH" "Refusing: binary not found at $BIN_PATH (Air should have built it)."
+exec "$BIN_PATH" "$@"

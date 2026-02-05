@@ -44,3 +44,8 @@ build:
 [group('dev jobs')]
 build-linux:
     scripts/build linux_amd64
+
+# runs a built binary, modes [default|test|live|debug]
+[group('dev jobs')]
+run mode="":
+    scripts/run {{mode}}

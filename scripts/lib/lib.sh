@@ -6,15 +6,11 @@
 # Lightweight logging & guard helpers for project scripts.
 # Safe under: set -euo pipefail
 #
-# Usage:
-#   source scripts/lib/lib.sh
-#   need_cmd git
-#   require_file .env "Create .env from .env.example"
-#   run go test ./...
-#
 # Optional:
 #   LOG_TS=1     # prefix messages with [HH:MM:SS]
 #   NO_COLOR=1   # disable ANSI color even when TTY
+
+set -euo pipefail
 
 # ==================================================================================== #
 # LOGGING & ANSI OUTPUT
@@ -127,7 +123,6 @@ load_env_file() {
 # ==================================================================================== #
 
 run() {
-  # Prints the command, then executes it.
   info "$*"
   "$@"
 }

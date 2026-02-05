@@ -76,7 +76,7 @@ ENV_LOAD := set -e; set -a; . "$(ENV_FILE)"; set +a
 main_package_path   ?= ./cmd/dugout
 binary_name         ?= dugout
 
-## env/check: fail if .env is missing
+## env/check: fail if .env is missing -- OK
 .PHONY: env/check
 env/check:
 	@test -f "$(ENV_FILE)" || { $(call die,Refusing: $(ENV_FILE) not found. Create it (or copy from .env.example).); }
@@ -251,14 +251,14 @@ build/linux_amd64:
 	@$(call log_ok,... complete.)
 	@echo
 	
-## run: run the application (optional ARGS passthrough)
+## run: run the application (optional ARGS passthrough) -- OK
 .PHONY: run
 run: env/check build
 	@$(call log_info,Running $(binary_name)...)
 	@$(ENV_LOAD); \
 	/tmp/bin/$(binary_name) $(ARGS)
 	
-## run/live: run the application with reloading on file changes (optional ARGS passthrough)
+## run/live: run the application with reloading on file changes (optional ARGS passthrough) -- OK
 .PHONY: run/live
 run/live: env/check
 	@$(call log_info,Running $(binary_name) with automatic refresh on file changes...)
@@ -273,8 +273,8 @@ run/live: env/check
 		--misc.clean_on_exit "true"
 
 # Suggested additional targets:
-# - run/debug: run with debug-oriented flags (override via ARGS)
-# - run/test: create .env.test with substitute variables
+# - run/debug: run with debug-oriented flags (override via ARGS) -- OK
+# - run/test: create .env.test with substitute variables -- OK
 
 # ==================================================================================== #
 ## --------------

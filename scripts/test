@@ -2,17 +2,14 @@
 # shellcheck shell=bash
 #
 # scripts/test
-#
-# Usage:
-#   scripts/test              # unit (default)
-#   scripts/test unit
-#   scripts/test race
-#   scripts/test cover
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/lib.sh"
+ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+
+source "$ROOT_DIR/scripts/lib/lib.sh"
+source "$ROOT_DIR/scripts/lib/project.sh"
+source "$ROOT_DIR/scripts/lib/paths.sh"
 
 usage() {
   cat >&2 <<'EOF'
@@ -53,7 +50,7 @@ race)
 cover)
   info "Running tests and displaying coverage..."
 
-  tmp="${TMPDIR:-/tmp}/go-test-cover.$$.out"
+  tmp="$TMP_BASE/go-test-cover.$$.out"
   trap 'rm -f "$tmp"' RETURN
 
   go test -buildvcs -coverprofile="$tmp" ./...
