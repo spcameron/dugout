@@ -30,8 +30,11 @@ fmt() {
 }
 
 main() {
+  info "Cleaning up project..."
+  printf '\n'
   tidy
   fmt
+  ok "... cleaning complete."
 }
 
 main "$@"

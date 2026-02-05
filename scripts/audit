@@ -138,8 +138,8 @@ main() {
   vet
   staticcheck_check
   vulncheck_check
-  ok "... audit passed."
-  printf '\n'
+  ok "... audit complete."
+  # printf '\n'
 }
 
 main "$@"

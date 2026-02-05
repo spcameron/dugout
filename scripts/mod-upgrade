@@ -15,4 +15,4 @@ info "Running go-mod-upgrade..."
 go-mod-upgrade
 
 ok "... report complete."
-printf '\n'
+# printf '\n'

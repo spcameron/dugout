@@ -41,14 +41,14 @@ case "$cmd" in
 unit)
   info "Running tests..."
   go test -buildvcs ./...
-  ok "... complete."
-  printf '\n'
+  ok "... tests complete."
+  # printf '\n'
   ;;
 race)
   info "Running tests with race detector..."
   go test -race -buildvcs ./...
-  ok "... complete."
-  printf '\n'
+  ok "... tests complete."
+  # printf '\n'
   ;;
 cover)
   info "Running tests and displaying coverage..."
@@ -60,8 +60,8 @@ cover)
   go tool cover -func="$tmp" | tail -n 1
   go tool cover -html="$tmp"
 
-  ok "... complete."
-  printf '\n'
+  ok "... tests complete."
+  # printf '\n'
   ;;
 *)
   usage
