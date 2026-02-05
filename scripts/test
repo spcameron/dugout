@@ -20,19 +20,24 @@ Usage:
   scripts/test [unit|race|cover]
 
 Commands:
-  unit run tests (default)
-  race run tests with race detector
-  cover run tests, print total coverage, and open HTML report
+  unit     run tests (default)
+  race     run tests with race detector
+  cover    run tests, print total coverage, and open HTML report
 EOF
 }
 
-cmd="${1:-unit}"
-
-case "$cmd" in
+case "${1:-}" in
 -h | --help | help)
   usage
   exit 0
   ;;
+esac
+
+need_cmd go
+
+cmd="${1:-unit}"
+
+case "$cmd" in
 unit)
   info "Running tests..."
   go test -buildvcs ./...

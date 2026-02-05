@@ -233,7 +233,7 @@ tidy:
 	@$(call log_ok,... complete.)
 	@echo
 	
-## build: build the application (local)
+## build: build the application (local) -- OK
 .PHONY: build
 build:
 	@$(call log_info,Building $(binary_name) \(local\)...)
@@ -242,7 +242,7 @@ build:
 	@$(call log_ok,... complete.)
 	@echo
 	
-## build/linux_amd64: build the production binary
+## build/linux_amd64: build the production binary -- OK
 .PHONY: build/linux_amd64
 build/linux_amd64:
 	@$(call log_info,Building $(binary_name) for linux/amd64...)

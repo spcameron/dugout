@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# shellcheck shell=bash
+#
+# scripts/build
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/lib.sh"
+
+usage() {
+  cat >&2 <<'EOF'
+Usage:
+  scripts/build [target] [module]
+
+Targets:
+  native         native build (default)
+  linux_amd64    linux build
+
+Module path:
+  ./cmd/dugout   (default)
+EOF
+}
+
+case "${1:-}" in
+-h | --help | help)
+  usage
+  exit 0
+  ;;
+esac
+
+need_cmd go
+
+target="${1:-native}"
+module="${2:-./cmd/dugout}"
+module=${module%/}
+
+require_dir "$module" "Refusing: module directory not found: $module"
+
+bin_name=$(basename "$module")
+
+if [[ "$bin_name" == "." ]]; then
+  die "Refusing: cannot use '.' as binary name."
+fi
+
+case "$target" in
+native)
+  info "Building native binary..."
+
+  tmp="${TMPDIR:-/tmp}/bin"
+
+  mkdir -p "$tmp"
+  go build \
+    -o="$tmp/$bin_name" \
+    "$module"
+
+  ok "writing to $tmp/$bin_name"
+  ok "... build complete."
+  printf '\n'
+  ;;
+linux_amd64)
+  info "Building linux_amd64 binary..."
+
+  tmp="${TMPDIR:-/tmp}/bin/linux_amd64"
+
+  mkdir -p "$tmp"
+  GOOS=linux GOARCH=amd64 \
+    go build \
+    -trimpath \
+    -ldflags='-s -w' \
+    -o="$tmp/$bin_name" \
+    "$module"
+
+  ok "writing to $tmp/$bin_name"
+  ok "... build complete."
+  printf '\n'
+  ;;
+*)
+  usage
+  die "Unknown target: $target"
+  ;;
+esac

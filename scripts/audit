@@ -10,6 +10,11 @@ source "$SCRIPT_DIR/lib/lib.sh"
 
 trap '(( $? != 0 )) && printf "\n" && err "... audit failed."' EXIT
 
+need_cmd go
+need_cmd gofmt
+need_cmd staticcheck
+need_cmd govulncheck
+
 # fmt_check fails if gofmt would make changes, and reports files
 fmt_check() {
   info "Running gofmt check..."
