@@ -282,7 +282,7 @@ run/live: env/check
 ## --------------
 # ==================================================================================== #
 
-## require-clean: fail if the Git working tree has uncommitted changes
+## require-clean: fail if the Git working tree has uncommitted changes -- OK
 .PHONY: require-clean
 require-clean:
 	@status="$$(git status --porcelain)"; \
@@ -292,7 +292,7 @@ require-clean:
 		exit 1; \
 	fi
 
-## require-upstream: fail unless current branch has an upstream tracking branch
+## require-upstream: fail unless current branch has an upstream tracking branch -- OK
 .PHONY: require-upstream
 require-upstream:
 	@up="$$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || true)"; \
@@ -301,7 +301,7 @@ require-upstream:
 		exit 1; \
 	fi
 	
-## on-main: fail unless currently on main
+## on-main: fail unless currently on main -- OK
 .PHONY: on-main
 on-main:
 	@branch="$$(git rev-parse --abbrev-ref HEAD)"; \
@@ -310,7 +310,7 @@ on-main:
 		exit 1; \
 	fi
 
-## on-feature: fail unless currently on a non-main branch with an approved prefix
+## on-feature: fail unless currently on a non-main branch with an approved prefix -- OK
 .PHONY: on-feature
 on-feature:
 	@branch="$$(git rev-parse --abbrev-ref HEAD)"; \
@@ -328,7 +328,7 @@ on-feature:
 			exit 1 ;; \
 	esac
 
-## up-to-date: fail unless local HEAD matches origin/main
+## up-to-date: fail unless local HEAD matches origin/main -- OK
 .PHONY: up-to-date
 up-to-date: on-main
 	@git fetch origin; \
@@ -351,7 +351,7 @@ repair/main: confirm require-clean on-main
 	@$(call log_ok,... complete.)
 	@echo
 
-## sync/main: fast-forward main from origin/main (no confirm; safe to call from other targets)
+## sync/main: fast-forward main from origin/main (no confirm; safe to call from other targets) -- OK
 .PHONY: sync/main
 sync/main: require-clean
 	@$(call log_info,Syncing main from origin/main...)
@@ -360,7 +360,7 @@ sync/main: require-clean
 	@$(call log_ok,... complete.)
 	@echo
 
-## sync/branch: rebase onto upstream then origin/main, audit, and publish (force-with-lease)
+## sync/branch: rebase onto upstream then origin/main, audit, and publish (force-with-lease) -- OK
 .PHONY: sync/branch
 sync/branch: confirm require-clean on-feature require-upstream
 	@$(call log_info,Syncing branch...)
@@ -376,6 +376,7 @@ sync/branch: confirm require-clean on-feature require-upstream
 	@$(call log_ok,... sync complete.)
 	@echo
 
+## TODO: just switch main|branch with modules and branch default
 ## sync: convenience alias for sync/branch
 .PHONY: sync
 sync: sync/branch
