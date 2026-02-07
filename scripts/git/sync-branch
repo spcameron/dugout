@@ -40,22 +40,18 @@ main() {
   git rebase '@{u}'
   in_rebase=0
   ok "... complete."
-  printf '\n'
 
   info "Rebasing branch onto origin/main..."
   in_rebase=1
   git rebase origin/main
   in_rebase=0
   ok "... complete."
-  printf '\n'
 
   "$ROOT_DIR/scripts/audit"
-  printf '\n'
 
   info "Pushing (force-with-lease)..."
   git push --force-with-lease
   ok "... complete."
-  printf '\n'
 
   ok "... sync complete."
 }
