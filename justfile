@@ -83,7 +83,7 @@ pr-merge:
 
 # merge PR for local branch, sync main, and delete local branch
 [group('git')]
-pr-merge-with-cleanup:
+pr-finish:
     @scripts/git/pr-merge --cleanup
 
 # view open PR in browser
@@ -111,9 +111,9 @@ rebase-upstream:
 repair-main:
     @scripts/git/repair-main
 
-# rebase onto upstream then origin/main, audit, and publish (force-with-lease)
+# rebase branch onto upstream then origin/main, audit, and publish (force-with-lease)
 [group('git')]
-sync-branch:
+sync:
     @scripts/git/sync-branch
 
 # fast-forward main from origin/main

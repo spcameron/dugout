@@ -11,12 +11,14 @@ source "$ROOT_DIR/scripts/lib/lib.sh"
 source "$ROOT_DIR/scripts/lib/git.sh"
 
 main() {
-  "$ROOT_DIR/scripts/confirm"
+  cd "$ROOT_DIR"
 
   need_cmd git
   require_clean
   require_on_feature
   require_upstream
+
+  "$ROOT_DIR/scripts/confirm"
 
   info "Syncing branch ..."
 
