@@ -48,6 +48,7 @@ main() {
   git rebase origin/main
   in_rebase=0
   ok "... complete."
+  ok "... sync complete."
 
   "$ROOT_DIR/scripts/audit"
 
@@ -55,7 +56,6 @@ main() {
   git push --force-with-lease
   ok "... complete."
 
-  ok "... sync complete."
 }
 
 main "$@"
