@@ -111,12 +111,13 @@ rebase-upstream:
 repair-main:
     @scripts/git/repair-main
 
+# rebase onto upstream then origin/main, audit, and publish (force-with-lease)
+[group('git')]
+sync-branch:
+    @scripts/git/sync-branch
+
 # fast-forward main from origin/main
 [group('git')]
 sync-main:
     @scripts/git/sync-main
 
-# rebase onto upstream then origin/main, audit, and publish (force-with-lease)
-[group('git')]
-sync-branch:
-    @scripts/git/sync-branch
