@@ -13,7 +13,7 @@ source "$ROOT_DIR/scripts/lib/git.sh"
 usage() {
   cat >&2 <<'EOF'
 Usage:
-  scripts/pr-merge [--cleanup|-c]
+  scripts/git/pr-merge [--cleanup|-c]
 
 Options:
   -c --cleanup    Sync main and delete local branch after merging PR
