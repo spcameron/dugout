@@ -34,23 +34,33 @@ mod_tidy_check() {
 
   info "Running tidy check..."
 
-  tmp="$TMP_BASE/audit-go-mod-tidy.$$.diff"
-  trap 'rm -f "$tmp"' RETURN
+  tmp_diff="$TMP_BASE/audit-go-mod-tidy.$$.diff"
+  tmp_err="$TMP_BASE/audit-go-mod-tidy.$$.err"
+  trap 'rm -f "$tmp_diff" "$tmp_err"' RETURN
 
   set +e
-  go mod tidy -diff >"$tmp" 2>&1
+  go mod tidy -diff >"$tmp_diff" 2>"$tmp_err"
   status=$?
   set -e
 
   if [[ $status -ne 0 ]]; then
     err "go mod tidy failed (exit $status)"
-    [[ -s "$tmp" ]] && printf '\n%s\n\n' "$(<"$tmp")" >&2
+    if [[ -s "$tmp_err" ]]; then
+      printf '\n%s\n\n' "$(<"$tmp_err")" >&2
+    fi
     return 1
   fi
 
-  if [[ -s "$tmp" ]]; then
+  if [[ -s "$tmp_err" ]]; then
+    warn "go mod tidy emitted stderr (often dependency downloads); not a failure."
+    if [[ -n "${CI:-}" ]]; then
+      printf '\n%s\n\n' "$(<"$tmp_err")" >&2
+    fi
+  fi
+
+  if [[ -s "$tmp_diff" ]]; then
     err "Refusing: go.mod/go.sum are not tidy."
-    printf '\n%s\n\n' "$(<"$tmp")" >&2
+    printf '\n%s\n\n' "$(<"$tmp_diff")" >&2
     warn "Run 'go mod tidy'"
     return 1
   fi
