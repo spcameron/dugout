@@ -14,9 +14,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
+      - uses: jdx/mise-action@v3
         with:
-          go-version-file: go.mod
-          cache: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - run: make ci
+      - run: just ci
