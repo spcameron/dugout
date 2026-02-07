@@ -28,7 +28,7 @@ main() {
 
   cleanup() {
     set +e
-    if [[ "$branch" != "main" ]]; then
+    if [[ "${branch:-}" != "main" && -n "${branch:-}" ]]; then
       if git show-ref --verify --quiet "refs/heads/$branch"; then
         git switch "$branch" >/dev/null 2>&1 || true
       fi
