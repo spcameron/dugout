@@ -5,9 +5,7 @@
 
 set -euo pipefail
 
-ROOT_DIR="${ROOT_DIR:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}"
-
-source "$ROOT_DIR/scripts/lib/lib.sh"
+source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 
 require_clean() {
   need_cmd git
@@ -31,8 +29,7 @@ require_upstream() {
 
   if [[ -z "$up" ]]; then
     err "Refusing: no upstream set for this branch."
-    # TODO: old make recommendation is here
-    # warn "Run 'make push/u' first."
+    warn "Run 'push-upstream' first."
     exit 1
   fi
 }
@@ -89,8 +86,7 @@ require_main_matches_origin() {
   git fetch origin
   if [[ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]]; then
     err "Refusing: local HEAD does not match 'origin/main'."
-    # TODO: old make recommendation is here
-    # warn "Run 'make sync/main' first."
+    warn "Run 'sync-main' first."
     exit 1
   fi
 }

@@ -5,10 +5,15 @@
 
 set -euo pipefail
 
-ROOT_DIR="${ROOT_DIR:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}"
+source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 
-source "$ROOT_DIR/scripts/lib/lib.sh"
-source "$ROOT_DIR/scripts/lib/project.sh"
+CMD_DIR="${CMD_DIR:-$ROOT_DIR/cmd/dugout}"
+BINARY_NAME="${BINARY_NAME:-$(basename "$CMD_DIR")}"
+
+# Guardrails
+[[ "$BINARY_NAME" != "." && "$BINARY_NAME" != "/" && -n "$BINARY_NAME" ]] || {
+  die "Refusing: invalid BINARY_NAME derived from CMD_DIR: '$CMD_DIR'"
+}
 
 TMP_BASE="${TMPDIR:-/tmp}"
 TMP_BASE="${TMP_BASE%/}"

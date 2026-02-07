@@ -337,8 +337,7 @@ up-to-date: on-main
 		exit 1; \
 	fi
 
-# TODO:
-## repair/main: reset local main to origin/main (keeps a backup branch)
+## repair/main: reset local main to origin/main (keeps a backup branch) -- OK
 .PHONY: repair/main
 repair/main: confirm require-clean on-main
 	@$(call log_info,Repairing main...)

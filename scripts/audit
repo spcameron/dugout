@@ -8,18 +8,14 @@ set -euo pipefail
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 
 source "$ROOT_DIR/scripts/lib/lib.sh"
-source "$ROOT_DIR/scripts/lib/project.sh"
 source "$ROOT_DIR/scripts/lib/paths.sh"
 
-trap '(( $? != 0 )) && printf "\n" && err "... audit failed."' EXIT
-
-need_cmd go
-need_cmd gofmt
-need_cmd staticcheck
-need_cmd govulncheck
+trap '(( $? != 0 )) && err "... audit failed."' EXIT
 
 # fmt_check fails if gofmt would make changes, and reports files
 fmt_check() {
+  need_cmd gofmt
+
   info "Running gofmt check..."
 
   files="$(gofmt -l .)"
@@ -30,11 +26,12 @@ fmt_check() {
   fi
 
   ok "... complete."
-  printf '\n'
 }
 
 # mod_tidy_check fails if tidy would make changes to go.mod/go.sum
 mod_tidy_check() {
+  need_cmd go
+
   info "Running tidy check..."
 
   tmp="$TMP_BASE/audit-go-mod-tidy.$$.diff"
@@ -59,31 +56,30 @@ mod_tidy_check() {
   fi
 
   ok "... complete."
-  printf '\n'
 }
 
 # mod_verify runs go mod verify, accepts tool error outputs
 mod_verify() {
+  need_cmd go
+
   info "Running go mod verify..."
-
   go mod verify
-
   ok "... complete."
-  printf '\n'
 }
 
 # vet runs go vet, accepts tool error outputs
 vet() {
+  need_cmd go
+
   info "Running go vet..."
-
   go vet ./...
-
   ok "... complete."
-  printf '\n'
 }
 
 # staticcheck_check fails if staticcheck reports issues
 staticcheck_check() {
+  need_cmd staticcheck
+
   info "Running staticcheck..."
 
   tmp="$TMP_BASE/audit-staticcheck.$$.out"
@@ -104,11 +100,12 @@ staticcheck_check() {
   fi
 
   ok "... complete."
-  printf '\n'
 }
 
 # vulncheck_check fails if vulncheck reports vulnerabilities
 vulncheck_check() {
+  need_cmd govulncheck
+
   info "Running vulncheck..."
 
   tmp="$TMP_BASE/audit-vulncheck.$$.out"
@@ -129,12 +126,15 @@ vulncheck_check() {
   fi
 
   ok "... complete."
-  printf '\n'
 }
 
 main() {
+  need_cmd go
+  need_cmd gofmt
+  need_cmd staticcheck
+  need_cmd govulncheck
+
   info "Running audit..."
-  printf '\n'
   fmt_check
   mod_tidy_check
   mod_verify
@@ -142,7 +142,6 @@ main() {
   staticcheck_check
   vulncheck_check
   ok "... audit complete."
-  # printf '\n'
 }
 
 main "$@"

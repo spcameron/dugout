@@ -8,7 +8,6 @@ set -euo pipefail
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 
 source "$ROOT_DIR/scripts/lib/lib.sh"
-source "$ROOT_DIR/scripts/lib/project.sh"
 source "$ROOT_DIR/scripts/lib/paths.sh"
 
 usage() {
@@ -23,45 +22,46 @@ Commands:
 EOF
 }
 
-case "${1:-}" in
--h | --help | help)
-  usage
-  exit 0
-  ;;
-esac
+main() {
+  case "${1:-}" in
+  -h | --help | help)
+    usage
+    exit 0
+    ;;
+  esac
 
-need_cmd go
+  need_cmd go
 
-cmd="${1:-unit}"
+  cmd="${1:-unit}"
 
-case "$cmd" in
-unit)
-  info "Running tests..."
-  go test -buildvcs ./...
-  ok "... tests complete."
-  # printf '\n'
-  ;;
-race)
-  info "Running tests with race detector..."
-  go test -race -buildvcs ./...
-  ok "... tests complete."
-  # printf '\n'
-  ;;
-cover)
-  info "Running tests and displaying coverage..."
+  case "$cmd" in
+  unit)
+    info "Running tests..."
+    go test -buildvcs ./...
+    ok "... tests complete."
+    ;;
+  race)
+    info "Running tests with race detector..."
+    go test -race -buildvcs ./...
+    ok "... tests complete."
+    ;;
+  cover)
+    info "Running tests and displaying coverage..."
 
-  tmp="$TMP_BASE/go-test-cover.$$.out"
-  trap 'rm -f "$tmp"' RETURN
+    tmp="$TMP_BASE/go-test-cover.$$.out"
+    trap 'rm -f "$tmp"' RETURN
 
-  go test -buildvcs -coverprofile="$tmp" ./...
-  go tool cover -func="$tmp" | tail -n 1
-  go tool cover -html="$tmp"
+    go test -buildvcs -coverprofile="$tmp" ./...
+    go tool cover -func="$tmp" | tail -n 1
+    go tool cover -html="$tmp"
 
-  ok "... tests complete."
-  # printf '\n'
-  ;;
-*)
-  usage
-  die "Unknown command: $cmd"
-  ;;
-esac
+    ok "... tests complete."
+    ;;
+  *)
+    usage
+    die "Unknown command: $cmd"
+    ;;
+  esac
+}
+
+main "$@"

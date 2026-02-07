@@ -8,36 +8,28 @@ set -euo pipefail
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 
 source "$ROOT_DIR/scripts/lib/lib.sh"
-source "$ROOT_DIR/scripts/lib/project.sh"
 source "$ROOT_DIR/scripts/lib/paths.sh"
-
-need_cmd go
-need_cmd gofmt
 
 tidy() {
   info "Running tidy..."
-
   go mod tidy -v
-
   ok "... complete."
-  printf '\n'
 }
 
 fmt() {
   info "Running gofmt..."
-
   gofmt -w .
-
   ok "... complete."
-  printf '\n'
 }
 
 main() {
+  need_cmd go
+  need_cmd gofmt
+
   info "Cleaning up project..."
-  printf '\n'
   tidy
   fmt
-  ok "... cleaning complete."
+  ok "... cleanup complete."
 }
 
 main "$@"

@@ -11,12 +11,12 @@ source "$ROOT_DIR/scripts/lib/lib.sh"
 source "$ROOT_DIR/scripts/lib/git.sh"
 
 main() {
+  cd "$ROOT_DIR"
+
   need_cmd git
   need_cmd gh
   require_clean
   require_on_feature
-
-  cd "$ROOT_DIR"
 
   local branch pr_output
   branch="$(git rev-parse --abbrev-ref HEAD)"
@@ -43,7 +43,6 @@ main() {
   fi
 
   info "Syncing main and cleaning up local branch..."
-  printf '\n'
 
   git fetch origin
   git switch main >/dev/null

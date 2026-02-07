@@ -11,11 +11,12 @@ source "$ROOT_DIR/scripts/lib/lib.sh"
 source "$ROOT_DIR/scripts/lib/git.sh"
 
 main() {
+  cd "$ROOT_DIR"
+
   need_cmd git
   require_clean
 
   info "Syncing main from origin/main (ff-only)..."
-  printf '\n'
 
   local branch
   branch="$(git rev-parse --abbrev-ref HEAD)"

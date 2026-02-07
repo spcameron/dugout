@@ -7,7 +7,6 @@ help:
 [group('*workflow')]
 check:
     @scripts/audit 
-    @printf '\n'
     @scripts/test unit
 
 # runs audit & tests -race
@@ -61,6 +60,56 @@ run mode="":
 [group('run')]
 run-live:
     scripts/run live
+
+# sync main and clean up local branch (for branches with no PR)
+[group('git')]
+branch-cleanup:
+    scripts/git/branch-cleanup
+
+# sync main and create a new branch
+[group('git')]
+branch-new:
+    scripts/git/branch-new
+
+# create PR for current branch
+[group('git')]
+pr-create:
+    scripts/git/pr-create
+
+# merge PR for local branch
+[group('git')]
+pr-merge:
+    scripts/git/pr-merge
+
+# merge PR for local branch, sync main, and delete local branch
+[group('git')]
+pr-merge-with-cleanup:
+    scripts/git/pr-merge --cleanup
+
+# view open PR in browser
+[group('git')]
+pr-view:
+    scripts/git/pr-view
+
+# push local branch and set upstream to 'origin'
+[group('git')]
+push-upstream:
+    scripts/git/push-upstream
+
+# rebase branch onto origin/main
+[group('git')]
+rebase-main:
+    scripts/git/rebase-main
+
+# rebase branch onto upstream
+[group('git')]
+rebase-upstream:
+    scripts/git/rebase-upstream
+
+# backup current main and reset main to origin/main
+[group('git')]
+repair-main:
+    scripts/git/repair-main
 
 # fast-forward main from origin/main
 [group('git')]

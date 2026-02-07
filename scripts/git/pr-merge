@@ -10,7 +10,26 @@ ROOT_DIR="${ROOT_DIR:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}
 source "$ROOT_DIR/scripts/lib/lib.sh"
 source "$ROOT_DIR/scripts/lib/git.sh"
 
+usage() {
+  cat >&2 <<'EOF'
+Usage:
+  scripts/pr-merge [--cleanup|-c]
+
+Options:
+  -c --cleanup    Sync main and delete local branch after merging PR
+EOF
+}
+
 main() {
+  case "${1:-}" in
+  -h | --help | help)
+    usage
+    exit 0
+    ;;
+  esac
+
+  cd "$ROOT_DIR"
+
   local cleanup=0
 
   while [[ $# -gt 0 ]]; do
@@ -41,28 +60,21 @@ main() {
 
   "$ROOT_DIR/scripts/confirm"
 
-  cd "$ROOT_DIR"
-
   local branch
   branch="$(git rev-parse --abbrev-ref HEAD)"
 
   if ! gh pr view --json number >/dev/null; then
     err "Unable to view PR for this branch."
-    # TODO: update with script/just recommendation
-    # warn "Run pr-create to open one."
+    warn "Run 'pr-create' to open one."
     exit 1
   fi
 
   info "Merging PR for branch '$branch'..."
-  printf '\n'
-
   gh pr merge --squash --delete-branch
-
   ok "... PR merge complete."
 
   if [[ "$cleanup" -eq 1 ]]; then
     info "Syncing main and cleaning up local branch..."
-    printf '\n'
 
     git fetch origin
     git switch main >/dev/null
@@ -76,6 +88,7 @@ main() {
     fi
 
     git branch -D "$branch"
+
     ok "... merge and cleanup complete."
     exit 0
   fi
