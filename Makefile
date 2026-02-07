@@ -337,6 +337,7 @@ up-to-date: on-main
 		exit 1; \
 	fi
 
+# TODO:
 ## repair/main: reset local main to origin/main (keeps a backup branch)
 .PHONY: repair/main
 repair/main: confirm require-clean on-main
@@ -381,7 +382,7 @@ sync/branch: confirm require-clean on-feature require-upstream
 .PHONY: sync
 sync: sync/branch
 
-## rebase/upstream: rebase current branch onto its upstream (keeps branches linear)
+## rebase/upstream: rebase current branch onto its upstream (keeps branches linear) -- OK
 .PHONY: rebase/upstream
 rebase/upstream: confirm require-clean on-feature require-upstream
 	@$(call log_info,Rebasing branch onto upstream...)
@@ -390,7 +391,7 @@ rebase/upstream: confirm require-clean on-feature require-upstream
 	@$(call log_ok,... complete.)
 	@echo
 
-## rebase/main: rebase current branch onto origin/main (keeps branches linear)
+## rebase/main: rebase current branch onto origin/main (keeps branches linear) -- OK
 .PHONY: rebase/main
 rebase/main: confirm require-clean on-feature
 	@$(call log_info,Rebasing branch onto origin/main...)
@@ -399,7 +400,7 @@ rebase/main: confirm require-clean on-feature
 	@$(call log_ok,... complete.)
 	@echo
 
-## branch/new: create and switch to a new work branch (from freshly synced main)
+## branch/new: create and switch to a new work branch (from freshly synced main) -- OK
 .PHONY: branch/new
 branch/new: confirm require-clean
 	@set -e; \
@@ -421,7 +422,7 @@ branch/new: confirm require-clean
 	$(call log_info,Creating branch $$branch from main...); \
 	git switch -c "$$branch"
 	
-## branch/cleanup: delete the current local branch after syncing main (use only for branches without PRs)
+## branch/cleanup: delete the current local branch after syncing main (use only for branches without PRs) -- OK
 .PHONY: branch/cleanup
 branch/cleanup: confirm require-clean
 	@set -e; \
@@ -436,12 +437,12 @@ branch/cleanup: confirm require-clean
 	@$(call log_ok,... complete.)
 	@echo
 
-## push: fast-forward-only push (cheap pushes); refuse if it would be non-fast-forward
+## push: fast-forward-only push (cheap pushes); refuse if it would be non-fast-forward -- OMIT
 .PHONY: push
 push: on-feature require-upstream require-clean
 	@git push
 
-## push/u: push current branch and set upstream to origin
+## push/u: push current branch and set upstream to origin -- OK
 .PHONY: push/u
 push/u: on-feature require-clean
 	@branch="$$(git rev-parse --abbrev-ref HEAD)"; \
@@ -450,18 +451,18 @@ push/u: on-feature require-clean
 	@$(call log_ok,... complete.)
 	@echo
 	
-## pr/create: create a GitHub PR for the current branch
+## pr/create: create a GitHub PR for the current branch -- OK
 .PHONY: pr/create
 pr/create: confirm audit on-feature
 	@gh pr create --fill-verbose --editor
 
-## pr/view: open the current PR in the browser
+## pr/view: open the current PR in the browser -- OK
 .PHONY: pr/view
 pr/view: on-feature
 	@$(call log_info,Opening PR in browser...)
 	@gh pr view --web
 
-## pr/merge: squash-merge the PR for the current branch
+## pr/merge: squash-merge the PR for the current branch -- OK
 .PHONY: pr/merge
 pr/merge: confirm require-clean on-feature
 	@set -e; \

@@ -6,8 +6,9 @@ help:
 # runs audit & tests
 [group('*workflow')]
 check:
-    scripts/audit 
-    scripts/test unit
+    @scripts/audit 
+    @printf '\n'
+    @scripts/test unit
 
 # runs audit & tests -race
 [group('*workflow')]
@@ -60,3 +61,13 @@ run mode="":
 [group('run')]
 run-live:
     scripts/run live
+
+# fast-forward main from origin/main
+[group('git')]
+sync-main:
+    scripts/git/sync-main
+
+# rebase onto upstream then origin/main, audit, and publish (force-with-lease)
+[group('git')]
+sync-branch:
+    scripts/git/sync-branch

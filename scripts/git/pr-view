@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# shellcheck shell=bash
+#
+# scripts/git/pr-view
+
+set -euo pipefail
+
+ROOT_DIR="${ROOT_DIR:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}"
+
+source "$ROOT_DIR/scripts/lib/lib.sh"
+source "$ROOT_DIR/scripts/lib/git.sh"
+
+main() {
+  need_cmd gh
+  require_on_feature
+
+  cd "$ROOT_DIR"
+
+  if ! gh pr view --json number >/dev/null; then
+    err "Unable to view PR for this branch."
+    # TODO: update with script/just recommendation
+    # warn "Run pr-create to open one."
+    exit 1
+  fi
+
+  info "Opening PR in browser..."
+  gh pr view --web
+}
+
+main "$@"

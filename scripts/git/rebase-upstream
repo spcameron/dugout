@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 #
-# scripts/git/sync-branch
+# scripts/git/rebase-upstream
 
 set -euo pipefail
 
@@ -16,10 +16,7 @@ main() {
   require_on_feature
   require_upstream
 
-  "$ROOT_DIR/scripts/confirm"
-
-  info "Syncing branch ..."
-  printf '\n'
+  cd "$ROOT_DIR"
 
   local in_rebase=0
 
@@ -34,31 +31,16 @@ main() {
   }
   trap cleanup EXIT
 
+  info "Rebasing branch onto upstream..."
+  printf '\n'
+
   git fetch origin
 
-  info "Rebasing branch onto upstream..."
   in_rebase=1
   git rebase '@{u}'
   in_rebase=0
-  ok "... complete."
-  printf '\n'
 
-  info "Rebasing branch onto origin/main..."
-  in_rebase=1
-  git rebase origin/main
-  in_rebase=0
-  ok "... complete."
-  printf '\n'
-
-  "$ROOT_DIR/scripts/audit"
-  printf '\n'
-
-  info "Pushing (force-with-lease)..."
-  git push --force-with-lease
-  ok "... complete."
-  printf '\n'
-
-  ok "... sync complete."
+  ok "... rebase complete."
 }
 
 main "$@"
