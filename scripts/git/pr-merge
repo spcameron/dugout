@@ -13,7 +13,7 @@ source "$ROOT_DIR/scripts/lib/git.sh"
 usage() {
   cat >&2 <<'EOF'
 Usage:
-  scripts/pr-merge [--cleanup|-c]
+  scripts/git/pr-merge [--cleanup|-c]
 
 Options:
   -c --cleanup    Sync main and delete local branch after merging PR
@@ -70,7 +70,7 @@ main() {
   fi
 
   info "Merging PR for branch '$branch'..."
-  gh pr merge --squash --delete-branch
+  gh pr merge --squash
   ok "... PR merge complete."
 
   if [[ "$cleanup" -eq 1 ]]; then
@@ -87,7 +87,9 @@ main() {
       exit 1
     fi
 
-    git branch -D "$branch"
+    if git show-ref --verify --quiet "refs/heads/$branch"; then
+      git branch -D "$branch"
+    fi
 
     ok "... merge and cleanup complete."
     exit 0
