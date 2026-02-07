@@ -19,7 +19,7 @@ main() {
   require_on_feature
 
   "$ROOT_DIR/scripts/audit"
-  printf '\n'
+  "$ROOT_DIR/scripts/test"
 
   info "Creating PR..."
   gh pr create --fill-verbose --editor

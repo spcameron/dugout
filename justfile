@@ -68,8 +68,8 @@ branch-cleanup:
 
 # sync main and create a new branch
 [group('git')]
-branch-new:
-    @scripts/git/branch-new
+branch-create:
+    @scripts/git/branch-create
 
 # create PR for current branch
 [group('git')]

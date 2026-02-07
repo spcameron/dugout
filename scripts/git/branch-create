@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 #
-# scripts/git/branch-new
+# scripts/git/branch-create
 
 set -euo pipefail
 
