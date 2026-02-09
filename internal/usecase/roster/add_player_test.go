@@ -104,24 +104,30 @@ func TestAddPlayerHandler_Handle(t *testing.T) {
 			wantErr: testkit.ErrFailingLoad,
 		},
 		{
-			name:    "append returns error, handle returns error",
-			store:   &testkit.FailingAppendRosterStore{},
+			name: "append returns error, handle returns error",
+			store: &testkit.FailingAppendRosterStore{
+				Base: testkit.NewFakeRosterStore(),
+			},
 			wantErr: testkit.ErrFailingAppend,
 		},
 		{
-			name:    "append return ErrVersionConflict, handle returns ErrVersionConflict",
-			store:   &testkit.VersionConflictRosterStore{},
+			name: "append return ErrVersionConflict, handle returns ErrVersionConflict",
+			store: &testkit.VersionConflictRosterStore{
+				Base: testkit.NewFakeRosterStore(),
+			},
 			wantErr: ports.ErrVersionConflict,
 		},
 	}
 
 	for _, tc := range failureTestCases {
-		handler := roster.NewAddPlayerHandler(tc.store, testkit.NewStubLeagueLock())
-		cmd := roster.NewAddPlayerCommand(testkit.TeamA(), 1)
+		t.Run(tc.name, func(t *testing.T) {
+			handler := roster.NewAddPlayerHandler(tc.store, testkit.NewStubLeagueLock())
+			cmd := roster.NewAddPlayerCommand(testkit.TeamA(), 1)
 
-		err := handler.Handle(cmd)
+			err := handler.Handle(cmd)
 
-		assert.ErrorIs(t, err, tc.wantErr)
+			assert.ErrorIs(t, err, tc.wantErr)
+		})
 	}
 }
 

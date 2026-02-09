@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 #
-# scripts/git/branch-cleanup
+# scripts/git/branch-delete
 
 set -euo pipefail
 
@@ -42,7 +42,7 @@ main() {
     exit 1
   fi
 
-  info "Syncing main and cleaning up local branch..."
+  info "Syncing main and deleting local branch..."
 
   git fetch origin
   git switch main >/dev/null
