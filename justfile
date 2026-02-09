@@ -61,10 +61,10 @@ run mode="":
 run-live:
     @scripts/run live
 
-# sync main and clean up local branch (for branches with no PR)
+# sync main and delete local branch (for branches with no PR)
 [group('git')]
-branch-cleanup:
-    @scripts/git/branch-cleanup
+branch-delete:
+    @scripts/git/branch-delete
 
 # sync main and create a new branch
 [group('git')]

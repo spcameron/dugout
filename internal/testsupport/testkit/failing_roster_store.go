@@ -2,7 +2,6 @@ package testkit
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/spcameron/dugout/internal/domain"
 	"github.com/spcameron/dugout/internal/eventlog"
@@ -24,27 +23,32 @@ func (s *FailingLoadRosterStore) Append(id domain.TeamID, newEvents []domain.Ros
 	panic("stub: FailingLoadRosterStore.Append() always panics")
 }
 
-type FailingAppendRosterStore struct{}
+type FailingAppendRosterStore struct {
+	Base *FakeRosterStore
+}
 
 func (s *FailingAppendRosterStore) Load(id domain.TeamID) ([]eventlog.Recorded[domain.RosterEvent], ports.Version, error) {
-	return nil, 0, nil
+	if s.Base == nil {
+		panic("FailingAppendRosterStore.Base is nil")
+	}
+	return s.Base.Load(id)
 }
 
 func (s *FailingAppendRosterStore) Append(id domain.TeamID, newEvents []domain.RosterEvent, expected ports.Version) (ports.Version, error) {
 	return 0, ErrFailingAppend
 }
 
-type VersionConflictRosterStore struct{}
+type VersionConflictRosterStore struct {
+	Base *FakeRosterStore
+}
 
 func (s *VersionConflictRosterStore) Load(id domain.TeamID) ([]eventlog.Recorded[domain.RosterEvent], ports.Version, error) {
-	return nil, 1, nil
+	if s.Base == nil {
+		panic("FailingAppendRosterStore.Base is nil")
+	}
+	return s.Base.Load(id)
 }
 
 func (s *VersionConflictRosterStore) Append(id domain.TeamID, newEvents []domain.RosterEvent, expected ports.Version) (ports.Version, error) {
-	current := expected + 1
-	if current != expected {
-		return 0, fmt.Errorf("%w: current - %v, expected - %v", ports.ErrVersionConflict, current, expected)
-	}
-
-	return 0, nil
+	return 0, ports.ErrVersionConflict
 }
