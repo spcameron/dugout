@@ -75,3 +75,16 @@ func NewFakeRosterStore() *FakeRosterStore {
 		committed: make(map[domain.TeamID][]eventlog.Recorded[domain.RosterEvent]),
 	}
 }
+
+func GenerateRosterHistory(id domain.TeamID, players int) []domain.RosterEvent {
+	history := make([]domain.RosterEvent, players)
+	for i := range players {
+		history[i] = domain.AddedPlayerToRoster{
+			TeamID:      id,
+			PlayerID:    domain.PlayerID(i + 1),
+			EffectiveAt: TodayLock(),
+		}
+	}
+
+	return history
+}
