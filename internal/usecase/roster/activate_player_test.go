@@ -43,6 +43,67 @@ func TestActivatePlayerHandler_Handle(t *testing.T) {
 			},
 			wantErr: nil,
 		},
+		{
+			name:       "already activated player returns error and does not append",
+			playerID:   1,
+			playerRole: domain.RoleHitter,
+			history: []domain.RosterEvent{
+				domain.AddedPlayerToRoster{
+					TeamID:   testkit.TeamA(),
+					PlayerID: 1,
+				},
+				domain.ActivatedPlayerOnRoster{
+					TeamID:     testkit.TeamA(),
+					PlayerID:   1,
+					PlayerRole: domain.RoleHitter,
+				},
+			},
+			wantErr: domain.ErrPlayerAlreadyActive,
+		},
+		{
+			name:       "player not on roster returns error and does not append",
+			playerID:   2,
+			playerRole: domain.RolePitcher,
+			history: []domain.RosterEvent{
+				domain.AddedPlayerToRoster{
+					TeamID:   testkit.TeamA(),
+					PlayerID: 1,
+				},
+			},
+			wantErr: domain.ErrPlayerNotOnRoster,
+		},
+		{
+			name:       "activating pitcher when at max active pitchers returns error and does not append",
+			playerID:   domain.MaxActivePitchers + 1,
+			playerRole: domain.RolePitcher,
+			history:    testkit.GenerateActivatedHistory(testkit.TeamA(), 0, domain.MaxActivePitchers, domain.MaxActivePitchers+1),
+			wantErr:    domain.ErrActivePitchersFull,
+		},
+
+		{
+			name:       "activating hitter when at max active hitters return error and does not append",
+			playerID:   domain.MaxActiveHitters + 1,
+			playerRole: domain.RoleHitter,
+			history:    testkit.GenerateActivatedHistory(testkit.TeamA(), domain.MaxActiveHitters, 0, domain.MaxActiveHitters+1),
+			wantErr:    domain.ErrActiveHittersFull,
+		},
+		{
+			name:       "already activated player and mismatched role in ActivatePlayerCommand still errors and does not append",
+			playerID:   1,
+			playerRole: domain.RoleHitter,
+			history: []domain.RosterEvent{
+				domain.AddedPlayerToRoster{
+					TeamID:   testkit.TeamA(),
+					PlayerID: 1,
+				},
+				domain.ActivatedPlayerOnRoster{
+					TeamID:     testkit.TeamA(),
+					PlayerID:   1,
+					PlayerRole: domain.RolePitcher,
+				},
+			},
+			wantErr: domain.ErrPlayerAlreadyActive,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -84,7 +145,58 @@ func TestActivatePlayerHandler_Handle(t *testing.T) {
 
 			} else {
 				assert.ErrorIs(t, err, tc.wantErr)
+
+				require.Equal(t, len(spy.LoadCalls), 1)
+				loadCall := spy.LoadCalls[0]
+				assert.Equal(t, loadCall, teamID)
+
+				assert.Equal(t, len(spy.AppendCalls), 0)
 			}
 		})
 	}
+
+	t.Run("load returns error, handle returns error and does not append", func(t *testing.T) {
+		store := &testkit.FailingLoadRosterStore{}
+
+		handler := roster.NewActivatePlayerHandler(store, testkit.NewStubLeagueLock())
+		cmd := roster.NewActivatePlayerCommand(testkit.TeamA(), 1, domain.RoleHitter)
+
+		err := handler.Handle(cmd)
+
+		assert.ErrorIs(t, err, testkit.ErrFailingLoad)
+	})
+
+	t.Run("append returns error, handle returns error", func(t *testing.T) {
+		teamID := testkit.TeamA()
+		history := testkit.GenerateRosterHistory(teamID, 1)
+
+		store := &testkit.FailingAppendRosterStore{
+			Base: testkit.NewFakeRosterStore(),
+		}
+		store.Base.SeedEvents(teamID, history)
+
+		handler := roster.NewActivatePlayerHandler(store, testkit.NewStubLeagueLock())
+		cmd := roster.NewActivatePlayerCommand(teamID, 1, domain.RoleHitter)
+
+		err := handler.Handle(cmd)
+
+		assert.ErrorIs(t, err, testkit.ErrFailingAppend)
+	})
+
+	t.Run("append returns ErrVersionConflict, handle returns ErrVersionConflict", func(t *testing.T) {
+		teamID := testkit.TeamA()
+		history := testkit.GenerateRosterHistory(teamID, 1)
+
+		store := &testkit.VersionConflictRosterStore{
+			Base: testkit.NewFakeRosterStore(),
+		}
+		store.Base.SeedEvents(teamID, history)
+
+		handler := roster.NewActivatePlayerHandler(store, testkit.NewStubLeagueLock())
+		cmd := roster.NewActivatePlayerCommand(teamID, 1, domain.RoleHitter)
+
+		err := handler.Handle(cmd)
+
+		assert.ErrorIs(t, err, ports.ErrVersionConflict)
+	})
 }
