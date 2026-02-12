@@ -75,3 +75,81 @@ func NewFakeRosterStore() *FakeRosterStore {
 		committed: make(map[domain.TeamID][]eventlog.Recorded[domain.RosterEvent]),
 	}
 }
+
+func GenerateRosterHistory(id domain.TeamID, players int) []domain.RosterEvent {
+	history := make([]domain.RosterEvent, players)
+	for i := range players {
+		history[i] = domain.AddedPlayerToRoster{
+			TeamID:      id,
+			PlayerID:    domain.PlayerID(i + 1),
+			EffectiveAt: TodayLock(),
+		}
+	}
+
+	return history
+}
+
+func GenerateActivatedHistory(id domain.TeamID, hitters, pitchers, totalPlayers int) []domain.RosterEvent {
+	hitters = min(hitters, domain.MaxActiveHitters)
+	pitchers = min(pitchers, domain.MaxActivePitchers)
+	totalPlayers = min(totalPlayers, domain.MaxRosterSize)
+
+	totalEvents := hitters + pitchers + totalPlayers
+	history := make([]domain.RosterEvent, totalEvents)
+
+	i := 0
+	playerID := 1
+
+	for range hitters {
+		history[i] = domain.AddedPlayerToRoster{
+			TeamID:      id,
+			PlayerID:    domain.PlayerID(playerID),
+			EffectiveAt: TodayLock(),
+		}
+
+		i++
+
+		history[i] = domain.ActivatedPlayerOnRoster{
+			TeamID:      id,
+			PlayerID:    domain.PlayerID(playerID),
+			PlayerRole:  domain.RoleHitter,
+			EffectiveAt: TodayLock(),
+		}
+
+		i++
+		playerID++
+	}
+
+	for range pitchers {
+		history[i] = domain.AddedPlayerToRoster{
+			TeamID:      id,
+			PlayerID:    domain.PlayerID(playerID),
+			EffectiveAt: TodayLock(),
+		}
+
+		i++
+
+		history[i] = domain.ActivatedPlayerOnRoster{
+			TeamID:      id,
+			PlayerID:    domain.PlayerID(playerID),
+			PlayerRole:  domain.RolePitcher,
+			EffectiveAt: TodayLock(),
+		}
+
+		i++
+		playerID++
+	}
+
+	for playerID <= totalPlayers {
+		history[i] = domain.AddedPlayerToRoster{
+			TeamID:      id,
+			PlayerID:    domain.PlayerID(playerID),
+			EffectiveAt: TodayLock(),
+		}
+
+		i++
+		playerID++
+	}
+
+	return history
+}

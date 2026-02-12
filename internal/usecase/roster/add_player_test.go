@@ -14,21 +14,18 @@ import (
 func TestAddPlayerHandler_Handle(t *testing.T) {
 	testCases := []struct {
 		name     string
-		teamID   domain.TeamID
 		playerID domain.PlayerID
 		history  []domain.RosterEvent
 		wantErr  error
 	}{
 		{
 			name:     "empty history appends AddPlayerToRoster event",
-			teamID:   testkit.TeamA(),
 			playerID: 1,
 			history:  nil,
 			wantErr:  nil,
 		},
 		{
 			name:     "player already on projected roster returns error and does not append",
-			teamID:   testkit.TeamA(),
 			playerID: 1,
 			history: []domain.RosterEvent{
 				domain.AddedPlayerToRoster{
@@ -41,23 +38,24 @@ func TestAddPlayerHandler_Handle(t *testing.T) {
 		},
 		{
 			name:     "adding player to full roster returns error and does not append",
-			teamID:   testkit.TeamA(),
 			playerID: domain.MaxRosterSize + 1,
-			history:  generateRosterHistory(testkit.TeamA(), domain.MaxRosterSize),
+			history:  testkit.GenerateRosterHistory(testkit.TeamA(), domain.MaxRosterSize),
 			wantErr:  domain.ErrRosterFull,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			teamID := testkit.TeamA()
+
 			leagueLock := testkit.NewStubLeagueLock()
 			store := testkit.NewFakeRosterStore()
 			spy := testkit.NewSpyRosterStore(store)
 
-			store.SeedEvents(tc.teamID, tc.history)
+			store.SeedEvents(teamID, tc.history)
 
 			handler := roster.NewAddPlayerHandler(spy, leagueLock)
-			cmd := roster.NewAddPlayerCommand(tc.teamID, tc.playerID)
+			cmd := roster.NewAddPlayerCommand(teamID, tc.playerID)
 
 			err := handler.Handle(cmd)
 
@@ -66,16 +64,16 @@ func TestAddPlayerHandler_Handle(t *testing.T) {
 
 				require.Equal(t, len(spy.LoadCalls), 1)
 				loadCall := spy.LoadCalls[0]
-				assert.Equal(t, loadCall, tc.teamID)
+				assert.Equal(t, loadCall, teamID)
 
 				require.Equal(t, len(spy.AppendCalls), 1)
 				appendCall := spy.AppendCalls[0]
-				assert.Equal(t, appendCall.TeamID, tc.teamID)
+				assert.Equal(t, appendCall.TeamID, teamID)
 				assert.Equal(t, appendCall.Version, ports.Version(len(tc.history)))
 
 				require.Equal(t, len(appendCall.Events), 1)
 				appendedEvent := appendCall.Events[0]
-				require.Equal(t, appendedEvent.Team(), tc.teamID)
+				require.Equal(t, appendedEvent.Team(), teamID)
 				require.Equal(t, appendedEvent.OccurredAt(), handler.Lock.NextLock())
 
 				ev, ok := appendedEvent.(domain.AddedPlayerToRoster)
@@ -86,7 +84,7 @@ func TestAddPlayerHandler_Handle(t *testing.T) {
 
 				require.Equal(t, len(spy.LoadCalls), 1)
 				loadCall := spy.LoadCalls[0]
-				assert.Equal(t, loadCall, tc.teamID)
+				assert.Equal(t, loadCall, teamID)
 
 				assert.Equal(t, len(spy.AppendCalls), 0)
 			}
@@ -129,17 +127,4 @@ func TestAddPlayerHandler_Handle(t *testing.T) {
 			assert.ErrorIs(t, err, tc.wantErr)
 		})
 	}
-}
-
-func generateRosterHistory(id domain.TeamID, players int) []domain.RosterEvent {
-	history := make([]domain.RosterEvent, players)
-	for i := range players {
-		history[i] = domain.AddedPlayerToRoster{
-			TeamID:      id,
-			PlayerID:    domain.PlayerID(i + 1),
-			EffectiveAt: testkit.TodayLock(),
-		}
-	}
-
-	return history
 }
