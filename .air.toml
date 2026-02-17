@@ -8,7 +8,7 @@ env_files = [".env"]
 
 [build]
 cmd = "scripts/build native"
-entrypoint = ["scripts/air-entrypoint"]
+entrypoint = ["bash", "scripts/air-entrypoint"]
 
 include_ext = [
   "go", "tpl", "tmpl", "html", "css", "scss", "js", "ts", "sql",
